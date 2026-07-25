@@ -68,6 +68,29 @@ enum NotificationType {
   CERTIFICATE_ISSUED
   NEW_ENROLLMENT        // for instructors
   PAYMENT_RECEIVED      // for instructors
+  REVIEW_FLAGGED        // admin notified of flagged review
+  REVIEW_REMOVED        // reviewer notified their review was removed
+  REVIEW_APPROVED       // reviewer notified their review was approved
+}
+
+enum ReviewStatus {
+  VISIBLE      // published and shown to all users
+  FLAGGED      // has reached flag threshold, awaiting moderation
+  APPROVED     // admin explicitly approved (cleared from moderation queue)
+  REMOVED      // admin removed the review
+}
+
+enum FlagReason {
+  SPAM
+  INAPPROPRIATE
+  FAKE
+  OFFENSIVE
+  OTHER
+}
+
+enum ModerationAction {
+  APPROVED   // admin cleared the review
+  REMOVED    // admin removed the review
 }
 
 // ============================================================
@@ -92,6 +115,9 @@ model User {
   assignments    AssignmentSubmission[]
   notifications  Notification[]
   certificates   Certificate[]
+  reviews        Review[]
+  reviewFlags    ReviewFlag[]
+  moderationLogs ModerationLog[]
 
   @@map("users")
 }
@@ -124,6 +150,7 @@ model Course {
   enrollments   Enrollment[]
   certificates  Certificate[]
   events        ChainEvent[]
+  reviews       Review[]
 
   @@map("courses")
 }
@@ -313,4 +340,66 @@ model Notification {
   @@index([userId])
   @@index([read])
   @@map("notifications")
+}
+
+// ============================================================
+// REVIEWS & MODERATION
+// ============================================================
+
+model Review {
+  id         String       @id @default(uuid())
+  courseId   String
+  authorId   String
+  rating     Int          // 1–5
+  title      String?
+  body       String
+  status     ReviewStatus @default(VISIBLE)
+  flagCount  Int          @default(0)  // denormalised for fast queue queries
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  // Relations
+  course         Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  author         User            @relation(fields: [authorId], references: [id])
+  flags          ReviewFlag[]
+  moderationLogs ModerationLog[]
+
+  @@unique([courseId, authorId]) // one review per student per course
+  @@index([courseId])
+  @@index([status])
+  @@map("reviews")
+}
+
+model ReviewFlag {
+  id        String     @id @default(uuid())
+  reviewId  String
+  reporterId String
+  reason    FlagReason
+  details   String?
+  createdAt DateTime   @default(now())
+
+  // Relations
+  review   Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  reporter User   @relation(fields: [reporterId], references: [id])
+
+  @@unique([reviewId, reporterId]) // one flag per user per review
+  @@index([reviewId])
+  @@map("review_flags")
+}
+
+model ModerationLog {
+  id          String           @id @default(uuid())
+  reviewId    String
+  moderatorId String
+  action      ModerationAction
+  reason      String?
+  createdAt   DateTime         @default(now())
+
+  // Relations
+  review    Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  moderator User   @relation(fields: [moderatorId], references: [id])
+
+  @@index([reviewId])
+  @@index([moderatorId])
+  @@map("moderation_logs")
 }

@@ -18,6 +18,7 @@ import { EventsModule }       from './modules/events/events.module';
 import { NotificationsModule }from './modules/notifications/notifications.module';
 import { HealthModule }       from './modules/health/health.module';
 import { QuizzesModule }      from './modules/quizzes/quizzes.module';
+import { ReviewsModule }      from './modules/reviews/reviews.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { QuizzesModule }      from './modules/quizzes/quizzes.module';
     NotificationsModule,
     HealthModule,
     QuizzesModule,
+    ReviewsModule,
   ],
 })
 export class AppModule {}
