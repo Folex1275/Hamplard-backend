@@ -4,6 +4,7 @@ import {
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { StellarService } from '../../common/stellar/stellar.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ExamsService } from '../exams/exams.service';
 import { NotificationType } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -15,6 +16,7 @@ export class CertificatesService {
     private readonly prisma: PrismaService,
     private readonly stellar: StellarService,
     private readonly notifications: NotificationsService,
+    private readonly examsService: ExamsService,
   ) {}
 
   /**
@@ -22,14 +24,12 @@ export class CertificatesService {
    *
    * Flow:
    *  1. Verify the student's enrollment is COMPLETED (100% progress)
-   *  2. Verify no certificate already exists
-   *  3. Store the certificate record in the DB
-   *  4. The frontend/admin wallet then calls issue_certificate() on-chain
+   *  2. Verify student passed the required certification exam (if one exists)
+   *  3. Verify no certificate already exists
+   *  4. Store the certificate record in the DB
+   *  5. The frontend/admin wallet then calls issue_certificate() on-chain
    *     and sends back the txHash to update the DB record
-   *  5. Notify the student
-   *
-   * In production, step 4 should be automated via a secure backend signing
-   * service that holds the admin keypair and calls the contract directly.
+   *  6. Notify the student
    */
   async issue(adminId: string, studentId: string, courseId: string): Promise<any> {
     // Verify enrollment exists and is completed
@@ -41,6 +41,12 @@ export class CertificatesService {
     if (!enrollment) throw new NotFoundException('Enrollment not found');
     if (enrollment.status !== 'COMPLETED') {
       throw new ForbiddenException('Student has not completed this course yet');
+    }
+
+    // Verify certification exam has been passed (if exam exists)
+    const passedExam = await this.examsService.hasPassedExam(studentId, courseId);
+    if (!passedExam) {
+      throw new ForbiddenException('Student has not passed the required certification exam for this course');
     }
 
     // Check for existing certificate

@@ -19,6 +19,9 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { DiscussionsModule }  from './modules/discussions/discussions.module';
 import { HealthModule }       from './modules/health/health.module';
 import { QuizzesModule }      from './modules/quizzes/quizzes.module';
+import { ExamsModule }        from './modules/exams/exams.module';
+import { LiveSessionsModule } from './modules/live-sessions/live-sessions.module';
+import { PayoutsModule }      from './modules/payouts/payouts.module';
 import { ReportsModule }      from './modules/reports/reports.module';
 import { ReviewsModule }      from './modules/reviews/reviews.module';
 
@@ -54,6 +57,9 @@ import { ReviewsModule }      from './modules/reviews/reviews.module';
     DiscussionsModule,
     HealthModule,
     QuizzesModule,
+    ExamsModule,
+    LiveSessionsModule,
+    PayoutsModule,
     ReportsModule,
     ReviewsModule,
   ],
