@@ -49,6 +49,12 @@ enum QuestionType {
   SHORT_ANSWER
 }
 
+enum CommentReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum AssignmentStatus {
   PENDING       // student not submitted yet
   SUBMITTED     // student submitted, awaiting review
@@ -126,6 +132,7 @@ model User {
   reportsFiled   AbuseReport[] @relation("ReportsFiled")
   reportsHandled AbuseReport[] @relation("ReportsHandled")
   reviews        CourseReview[]
+  discussionComments DiscussionComment[]
 
   @@map("users")
 }
@@ -393,4 +400,22 @@ model CourseReview {
   @@unique([courseId, studentId])
   @@index([courseId])
   @@map("course_reviews")
+model DiscussionComment {
+  id              String               @id @default(uuid())
+  discussionId    String
+  authorId        String
+  content         String
+  hidden          Boolean              @default(false)
+  flaggedCount    Int                  @default(0)
+  reviewStatus    CommentReviewStatus  @default(PENDING)
+  moderationNotes String?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  // Relations
+  author User @relation(fields: [authorId], references: [id])
+
+  @@index([discussionId])
+  @@index([authorId])
+  @@map("discussion_comments")
 }

@@ -15,7 +15,8 @@ import { EnrollmentsModule }  from './modules/enrollments/enrollments.module';
 import { AssignmentsModule }  from './modules/assignments/assignments.module';
 import { CertificatesModule } from './modules/certificates/certificates.module';
 import { EventsModule }       from './modules/events/events.module';
-import { NotificationsModule }from './modules/notifications/notifications.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { DiscussionsModule }  from './modules/discussions/discussions.module';
 import { HealthModule }       from './modules/health/health.module';
 import { QuizzesModule }      from './modules/quizzes/quizzes.module';
 import { ReportsModule }      from './modules/reports/reports.module';
@@ -50,6 +51,7 @@ import { ReviewsModule }      from './modules/reviews/reviews.module';
     CertificatesModule,
     EventsModule,
     NotificationsModule,
+    DiscussionsModule,
     HealthModule,
     QuizzesModule,
     ReportsModule,
