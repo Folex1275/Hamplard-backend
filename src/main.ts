@@ -57,6 +57,8 @@ async function bootstrap() {
     .addTag('certificates', 'Certificate issuance and verification')
     .addTag('events',       'On-chain Stellar event feed')
     .addTag('notifications','User notifications')
+    .addTag('reports',      'Abuse reports on courses, comments, and profiles')
+    .addTag('reviews',      'Course ratings and reviews')
     .addTag('health',       'Health check')
     .build();
 
