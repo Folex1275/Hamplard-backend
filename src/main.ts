@@ -51,6 +51,8 @@ async function bootstrap() {
     .addTag('courses',      'Course creation, approval, and browsing')
     .addTag('lessons',      'Lesson content and progress')
     .addTag('enrollments',  'Course enrollment and payments')
+    .addTag('refunds',      'Refund requests and processing')
+    .addTag('bundles',      'Course bundles')
     .addTag('assignments',  'Practical assignment submission and review')
     .addTag('certificates', 'Certificate issuance and verification')
     .addTag('events',       'On-chain Stellar event feed')

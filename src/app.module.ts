@@ -18,6 +18,9 @@ import { EventsModule }       from './modules/events/events.module';
 import { NotificationsModule }from './modules/notifications/notifications.module';
 import { HealthModule }       from './modules/health/health.module';
 import { QuizzesModule }      from './modules/quizzes/quizzes.module';
+import { BundlesModule }      from './modules/bundles/bundles.module';
+import { InvoicesModule }     from './modules/invoices/invoices.module';
+import { FeeCalculatorModule } from './modules/billing/fee-calculator.module';
 
 @Module({
   imports: [
@@ -50,6 +53,9 @@ import { QuizzesModule }      from './modules/quizzes/quizzes.module';
     NotificationsModule,
     HealthModule,
     QuizzesModule,
+    BundlesModule,
+    InvoicesModule,
+    FeeCalculatorModule,
   ],
 })
 export class AppModule {}

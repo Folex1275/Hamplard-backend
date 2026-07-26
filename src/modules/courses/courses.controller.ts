@@ -48,6 +48,13 @@ export class CoursesController {
   @ApiOperation({ summary: 'Get full course detail including modules and lessons' })
   findOne(@Param('id') id: string) { return this.coursesService.findOne(id); }
 
+  @Get(':id/checkout')
+  @ApiOperation({ summary: 'Get platform fee + regional tax breakdown for checkout' })
+  @ApiQuery({ name: 'region', required: false, description: 'Region code for tax lookup, e.g. NG, US, GB, EU' })
+  getCheckoutBreakdown(@Param('id') id: string, @Query('region') region?: string) {
+    return this.coursesService.getCheckoutBreakdown(id, region);
+  }
+
   // ----------------------------------------------------------
   // INSTRUCTOR ROUTES
   // ----------------------------------------------------------

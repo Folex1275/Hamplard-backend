@@ -68,6 +68,17 @@ enum NotificationType {
   CERTIFICATE_ISSUED
   NEW_ENROLLMENT        // for instructors
   PAYMENT_RECEIVED      // for instructors
+  REFUND_REQUESTED
+  REFUND_APPROVED
+  REFUND_REJECTED
+  REFUND_PROCESSED
+}
+
+enum RefundStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PROCESSED
 }
 
 // ============================================================
@@ -92,6 +103,10 @@ model User {
   assignments    AssignmentSubmission[]
   notifications  Notification[]
   certificates   Certificate[]
+  refundRequests Refund[]
+  bundlesCreated Bundle[]           @relation("InstructorBundles")
+  bundleEnrollments BundleEnrollment[]
+  invoices       Invoice[]
 
   @@map("users")
 }
@@ -124,6 +139,8 @@ model Course {
   enrollments   Enrollment[]
   certificates  Certificate[]
   events        ChainEvent[]
+  bundleCourses BundleCourse[]
+  invoices      Invoice[]
 
   @@map("courses")
 }
@@ -237,6 +254,8 @@ model Enrollment {
   student       User            @relation(fields: [studentId], references: [id])
   course        Course          @relation(fields: [courseId], references: [id])
   lessonProgress LessonProgress[]
+  refunds       Refund[]
+  invoice       Invoice?
 
   @@unique([studentId, courseId])
   @@map("enrollments")
@@ -313,4 +332,97 @@ model Notification {
   @@index([userId])
   @@index([read])
   @@map("notifications")
+}
+
+model Refund {
+  id              String       @id @default(uuid())
+  enrollmentId    String
+  studentId       String
+  reason          String
+  requestedAmount Decimal      // USDC requested by the student
+  approvedAmount  Decimal?     // USDC approved by the admin (may be partial)
+  isPartial       Boolean      @default(false)
+  status          RefundStatus @default(PENDING)
+  adminNote       String?
+  txHash          String?      // on-chain refund transaction, set once processed
+  processedAt     DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  // Relations
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id])
+  student    User       @relation(fields: [studentId], references: [id])
+
+  @@index([enrollmentId])
+  @@index([studentId])
+  @@index([status])
+  @@map("refunds")
+}
+
+model Bundle {
+  id                String   @id @default(uuid())
+  instructorAddress String
+  title             String
+  description       String?
+  price             Decimal  // USDC, discounted vs sum of individual course prices
+  thumbnailUrl      String?
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  instructor  User               @relation("InstructorBundles", fields: [instructorAddress], references: [stellarAddress])
+  courses     BundleCourse[]
+  enrollments BundleEnrollment[]
+
+  @@index([instructorAddress])
+  @@map("bundles")
+}
+
+model BundleCourse {
+  id       String @id @default(uuid())
+  bundleId String
+  courseId String
+
+  // Relations
+  bundle Bundle @relation(fields: [bundleId], references: [id])
+  course Course @relation(fields: [courseId], references: [id])
+
+  @@unique([bundleId, courseId])
+  @@map("bundle_courses")
+}
+
+model BundleEnrollment {
+  id         String   @id @default(uuid())
+  bundleId   String
+  studentId  String
+  amountPaid Decimal  // USDC
+  txHash     String?  // on-chain bundle purchase tx
+  enrolledAt DateTime @default(now())
+
+  // Relations
+  bundle  Bundle @relation(fields: [bundleId], references: [id])
+  student User   @relation(fields: [studentId], references: [id])
+
+  @@unique([bundleId, studentId])
+  @@map("bundle_enrollments")
+}
+
+model Invoice {
+  id            String   @id @default(uuid())
+  invoiceNumber Int      @unique @default(autoincrement())
+  enrollmentId  String   @unique
+  studentId     String
+  courseId      String
+  amount        Decimal  // USDC amount invoiced
+  txHash        String?
+  emailSent     Boolean  @default(false)
+  issuedAt      DateTime @default(now())
+
+  // Relations
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id])
+  student    User       @relation(fields: [studentId], references: [id])
+  course     Course     @relation(fields: [courseId], references: [id])
+
+  @@map("invoices")
 }

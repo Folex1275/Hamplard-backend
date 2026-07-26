@@ -153,6 +153,26 @@ export class StellarService implements OnModuleInit {
     } catch { return false; }
   }
 
+  /**
+   * Look up a submitted transaction by hash and report whether it succeeded.
+   * Used to confirm an admin-submitted refund (or other) transaction actually
+   * landed on-chain before the backend marks it as processed.
+   */
+  async getTransactionStatus(
+    txHash: string,
+  ): Promise<{ status: string; successful: boolean } | null> {
+    try {
+      const result = await this.rpcClient.getTransaction(txHash);
+      return {
+        status: result.status,
+        successful: result.status === SorobanRpc.Api.GetTransactionStatus.SUCCESS,
+      };
+    } catch (error) {
+      this.logger.error(`getTransactionStatus(${txHash}) failed`, error.message);
+      return null;
+    }
+  }
+
   // ----------------------------------------------------------
   // USDC UTILITIES
   // ----------------------------------------------------------
