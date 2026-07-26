@@ -76,6 +76,37 @@ enum NotificationType {
   PAYMENT_RECEIVED      // for instructors
 }
 
+enum ReportTargetType {
+  COURSE
+  COMMENT
+  PROFILE
+}
+
+enum ReportCategory {
+  SPAM
+  HARASSMENT
+  HATE_SPEECH
+  MISINFORMATION
+  INAPPROPRIATE_CONTENT
+  SCAM_FRAUD
+  COPYRIGHT
+  OTHER
+}
+
+enum ReportSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ReportStatus {
+  PENDING        // submitted, awaiting moderator review
+  UNDER_REVIEW   // a moderator has picked it up
+  RESOLVED       // action was taken on the target
+  DISMISSED      // reviewed, no action needed
+}
+
 // ============================================================
 // MODELS
 // ============================================================
@@ -98,6 +129,9 @@ model User {
   assignments    AssignmentSubmission[]
   notifications  Notification[]
   certificates   Certificate[]
+  reportsFiled   AbuseReport[] @relation("ReportsFiled")
+  reportsHandled AbuseReport[] @relation("ReportsHandled")
+  reviews        CourseReview[]
   discussionComments DiscussionComment[]
 
   @@map("users")
@@ -120,6 +154,8 @@ model Course {
   totalDuration       Int          @default(0) // minutes
   totalEnrollments    Int          @default(0)
   totalRevenue        Decimal      @default(0)
+  avgRating           Float        @default(0)
+  totalReviews        Int          @default(0)
   txHash              String?      // on-chain registration tx
   approvedAt          DateTime?
   createdAt           DateTime     @default(now())
@@ -131,6 +167,7 @@ model Course {
   enrollments   Enrollment[]
   certificates  Certificate[]
   events        ChainEvent[]
+  reviews       CourseReview[]
 
   @@map("courses")
 }
@@ -322,6 +359,47 @@ model Notification {
   @@map("notifications")
 }
 
+model AbuseReport {
+  id             String           @id @default(uuid())
+  reporterId     String
+  targetType     ReportTargetType
+  targetId       String           // no cross-table FK: targetType decides which table targetId refers to
+  category       ReportCategory
+  severity       ReportSeverity   @default(MEDIUM)
+  description    String?
+  status         ReportStatus     @default(PENDING)
+  resolvedById   String?
+  resolutionNote String?
+  resolvedAt     DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  // Relations
+  reporter   User  @relation("ReportsFiled", fields: [reporterId], references: [id])
+  resolvedBy User? @relation("ReportsHandled", fields: [resolvedById], references: [id])
+
+  @@index([targetType, targetId])
+  @@index([status])
+  @@index([reporterId])
+  @@map("abuse_reports")
+}
+
+model CourseReview {
+  id        String   @id @default(uuid())
+  courseId  String
+  studentId String
+  rating    Int      // 1-5
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  course  Course @relation(fields: [courseId], references: [id])
+  student User   @relation(fields: [studentId], references: [id])
+
+  @@unique([courseId, studentId])
+  @@index([courseId])
+  @@map("course_reviews")
 model DiscussionComment {
   id              String               @id @default(uuid())
   discussionId    String
