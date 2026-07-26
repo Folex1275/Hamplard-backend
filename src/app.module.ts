@@ -18,6 +18,11 @@ import { EventsModule }       from './modules/events/events.module';
 import { NotificationsModule }from './modules/notifications/notifications.module';
 import { HealthModule }       from './modules/health/health.module';
 import { QuizzesModule }      from './modules/quizzes/quizzes.module';
+import { CouponsModule }      from './modules/coupons/coupons.module';
+import { DisputesModule }     from './modules/disputes/disputes.module';
+import { KycModule }          from './modules/kyc/kyc.module';
+import { PayoutsModule }      from './modules/payouts/payouts.module';
+import { UploadsModule }      from './modules/uploads/uploads.module';
 
 @Module({
   imports: [
@@ -50,6 +55,11 @@ import { QuizzesModule }      from './modules/quizzes/quizzes.module';
     NotificationsModule,
     HealthModule,
     QuizzesModule,
+    CouponsModule,
+    DisputesModule,
+    KycModule,
+    PayoutsModule,
+    UploadsModule,
   ],
 })
 export class AppModule {}

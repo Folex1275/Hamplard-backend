@@ -56,6 +56,10 @@ async function bootstrap() {
     .addTag('events',       'On-chain Stellar event feed')
     .addTag('notifications','User notifications')
     .addTag('health',       'Health check')
+    .addTag('coupons',      'Discount coupon creation and validation')
+    .addTag('disputes',     'Course and payment dispute management')
+    .addTag('kyc',          'Instructor identity verification')
+    .addTag('payouts',      'Instructor payout schedules and processing')
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
