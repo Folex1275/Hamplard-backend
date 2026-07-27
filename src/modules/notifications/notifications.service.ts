@@ -137,6 +137,12 @@ export class NotificationsService {
       ASSIGNMENT_SUBMITTED:  '📋',
       PAYMENT_RECEIVED:      '💰',
       NEW_ENROLLMENT:        '👋',
+      DISPUTE_FILED:         '⚠️',
+      DISPUTE_RESOLVED:      '✅',
+      KYC_APPROVED:          '🪪',
+      KYC_REJECTED:          '❌',
+      PAYOUT_PROCESSED:      '💸',
+      PAYOUT_SCHEDULED:      '📅',
     };
 
     try {

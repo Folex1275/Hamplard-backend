@@ -60,6 +60,10 @@ async function bootstrap() {
     .addTag('reports',      'Abuse reports on courses, comments, and profiles')
     .addTag('reviews',      'Course ratings and reviews')
     .addTag('health',       'Health check')
+    .addTag('coupons',      'Discount coupon creation and validation')
+    .addTag('disputes',     'Course and payment dispute management')
+    .addTag('kyc',          'Instructor identity verification')
+    .addTag('payouts',      'Instructor payout schedules and processing')
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
