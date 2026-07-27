@@ -300,6 +300,8 @@ model Enrollment {
   student       User            @relation(fields: [studentId], references: [id])
   course        Course          @relation(fields: [courseId], references: [id])
   lessonProgress LessonProgress[]
+  refunds       Refund[]
+  invoice       Invoice?
 
   @@unique([studentId, courseId])
   @@map("enrollments")

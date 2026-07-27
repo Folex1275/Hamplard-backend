@@ -4,6 +4,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { FeeCalculatorService } from '../billing/fee-calculator.service';
 import { CourseStatus, NotificationType } from '@prisma/client';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
@@ -15,6 +16,7 @@ export class CoursesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly feeCalculator: FeeCalculatorService,
   ) {}
 
   // ----------------------------------------------------------
@@ -214,6 +216,29 @@ export class CoursesService {
       throw new ForbiddenException('Cannot update an archived course');
     }
     return this.prisma.course.update({ where: { id: courseId }, data: dto });
+  }
+
+  // ----------------------------------------------------------
+  // CHECKOUT
+  // ----------------------------------------------------------
+
+  /** Computes the platform fee + regional tax breakdown for checkout. */
+  async getCheckoutBreakdown(courseId: string, region?: string) {
+    const course = await this.prisma.course.findUnique({
+      where: { id: courseId },
+      select: { id: true, title: true, price: true, platformFeePercent: true },
+    });
+    if (!course) throw new NotFoundException(`Course ${courseId} not found`);
+
+    return {
+      courseId: course.id,
+      courseTitle: course.title,
+      ...this.feeCalculator.computeBreakdown({
+        coursePrice: Number(course.price),
+        platformFeePercent: course.platformFeePercent,
+        region,
+      }),
+    };
   }
 
   async updateStats(courseId: string, delta: { enrollments?: number; revenue?: number }) {

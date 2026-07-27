@@ -4,6 +4,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { InvoicesService } from '../invoices/invoices.service';
 import { NotificationType } from '@prisma/client';
 
 @Injectable()
@@ -13,6 +14,7 @@ export class EnrollmentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly invoices: InvoicesService,
   ) {}
 
   /**
@@ -66,6 +68,12 @@ export class EnrollmentsService {
         `A new student has enrolled in "${enrollment.course.title}".`,
         { courseId },
       );
+    }
+
+    try {
+      await this.invoices.generateForEnrollment(enrollment.id);
+    } catch (error) {
+      this.logger.error(`Invoice generation failed for enrollment ${enrollment.id}`, error.message);
     }
 
     this.logger.log(`Enrollment created: ${studentId} → ${courseId}`);
