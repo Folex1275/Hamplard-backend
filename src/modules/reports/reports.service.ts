@@ -144,7 +144,7 @@ export class ReportsService {
   }
 
   async adminTopReportedTargets(limit = 10) {
-    const grouped = await this.prisma.abuseReport.groupBy({
+    const grouped = await (this.prisma.abuseReport as any).groupBy({
       by: ['targetType', 'targetId'],
       _count: { _all: true },
       orderBy: { _count: { _all: 'desc' } },

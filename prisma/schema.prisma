@@ -75,13 +75,57 @@ enum NotificationType {
   NEW_ENROLLMENT        // for instructors
   PAYMENT_RECEIVED      // for instructors
   LIVE_SESSION_REMINDER // for scheduled live sessions
+  DISPUTE_FILED
+  DISPUTE_RESOLVED
+  KYC_APPROVED
+  KYC_REJECTED
+  PAYOUT_PROCESSED
+  PAYOUT_SCHEDULED
+  REFUND_REQUESTED
+  REFUND_APPROVED
+  REFUND_REJECTED
+  REFUND_PROCESSED
 }
 
-enum LiveSessionStatus {
-  SCHEDULED
-  RESCHEDULED
-  CANCELLED
-  COMPLETED
+enum RefundStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PROCESSED
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  REJECTED
+  CLOSED
+}
+
+enum DisputeReferenceType {
+  ENROLLMENT
+  PAYMENT
+}
+
+enum KycStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum KycDocumentType {
+  NATIONAL_ID
+  PASSPORT
+  DRIVERS_LICENSE
+  UTILITY_BILL
+  BANK_STATEMENT
+  OTHER
 }
 
 enum PayoutStatus {
@@ -89,6 +133,19 @@ enum PayoutStatus {
   PROCESSING
   COMPLETED
   FAILED
+}
+
+enum PayoutFrequency {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+}
+
+enum LiveSessionStatus {
+  SCHEDULED
+  RESCHEDULED
+  CANCELLED
+  COMPLETED
 }
 
 enum ReportTargetType {
@@ -139,17 +196,28 @@ model User {
   updatedAt      DateTime  @updatedAt
 
   // Relations
-  coursesCreated Course[]               @relation("InstructorCourses")
-  enrollments    Enrollment[]
-  assignments    AssignmentSubmission[]
-  notifications  Notification[]
-  certificates   Certificate[]
-  examAttempts   ExamAttempt[]
-  payouts        Payout[]
-  reportsFiled   AbuseReport[] @relation("ReportsFiled")
-  reportsHandled AbuseReport[] @relation("ReportsHandled")
-  reviews        CourseReview[]
-  discussionComments DiscussionComment[]
+  coursesCreated      Course[]              @relation("InstructorCourses")
+  enrollments         Enrollment[]
+  assignments         AssignmentSubmission[]
+  notifications       Notification[]
+  certificates        Certificate[]
+  examAttempts        ExamAttempt[]
+  payouts             Payout[]              @relation("Payouts")
+  reportsFiled        AbuseReport[]         @relation("ReportsFiled")
+  reportsHandled      AbuseReport[]         @relation("ReportsHandled")
+  reviews             CourseReview[]
+  discussionComments  DiscussionComment[]
+  refundRequests      Refund[]
+  bundlesCreated      Bundle[]              @relation("InstructorBundles")
+  bundleEnrollments   BundleEnrollment[]
+  invoices            Invoice[]
+  couponsCreated      Coupon[]              @relation("CouponCreator")
+  couponRedemptions   CouponRedemption[]    @relation("CouponRedemptions")
+  disputesFiled       Dispute[]             @relation("DisputesFiled")
+  disputesResolved    Dispute[]             @relation("DisputesResolved")
+  kycSubmissions      KycSubmission[]       @relation("KycSubmissions")
+  kycReviews          KycSubmission[]       @relation("KycReviews")
+  payoutSchedule      PayoutSchedule?       @relation("PayoutSchedule")
 
   @@map("users")
 }
@@ -187,6 +255,9 @@ model Course {
   exam          Exam?
   liveSessions  LiveSession[]
   reviews       CourseReview[]
+  bundleCourses BundleCourse[]
+  invoices      Invoice[]
+  coupons       Coupon[]
 
   @@map("courses")
 }
@@ -436,23 +507,145 @@ model LiveSession {
   @@map("live_sessions")
 }
 
-model Payout {
-  id            String       @id @default(uuid())
-  instructorId  String
-  amount        Decimal
-  currency      String       @default("USDC")
-  status        PayoutStatus @default(PENDING)
-  txHash        String?
-  periodStart   DateTime?
-  periodEnd     DateTime?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+model PayoutSchedule {
+  id                String          @id @default(uuid())
+  instructorId      String          @unique
+  frequency         PayoutFrequency @default(MONTHLY)
+  minimumThreshold  Decimal         @default(10) // minimum USDC to trigger payout
+  stellarAddress    String          // payout destination address
+  isActive          Boolean         @default(true)
+  nextPayoutDate    DateTime
+  lastPayoutDate    DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
 
-  instructor    User         @relation(fields: [instructorId], references: [id])
+  // Relations
+  instructor User     @relation("PayoutSchedule", fields: [instructorId], references: [id])
+  payouts    Payout[]
+
+  @@map("payout_schedules")
+}
+
+model Payout {
+  id               String          @id @default(uuid())
+  scheduleId       String?
+  instructorId     String
+  amount           Decimal         // USDC amount
+  currency         String          @default("USDC")
+  status           PayoutStatus    @default(PENDING)
+  txHash           String?         // on-chain payout tx
+  periodStart      DateTime?
+  periodEnd        DateTime?
+  notes            String?
+  processedAt      DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  // Relations
+  schedule    PayoutSchedule? @relation(fields: [scheduleId], references: [id])
+  instructor  User            @relation("Payouts", fields: [instructorId], references: [id])
 
   @@index([instructorId])
   @@index([status])
   @@map("payouts")
+}
+
+// ============================================================
+// COUPONS
+// ============================================================
+
+model Coupon {
+  id              String       @id @default(uuid())
+  code            String       @unique
+  discountType    DiscountType
+  discountValue   Decimal      // percentage (0-100) or fixed USDC amount
+  maxRedemptions  Int?         // null = unlimited
+  redeemedCount   Int          @default(0)
+  minOrderAmount  Decimal?     // minimum cart total to apply coupon
+  expiresAt       DateTime?    // null = never expires
+  isActive        Boolean      @default(true)
+  createdById     String       // User (ADMIN or INSTRUCTOR) who created it
+  courseId        String?      // null = platform-wide, set = specific course only
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  // Relations
+  createdBy   User          @relation("CouponCreator", fields: [createdById], references: [id])
+  course      Course?       @relation(fields: [courseId], references: [id])
+  redemptions CouponRedemption[]
+
+  @@map("coupons")
+}
+
+model CouponRedemption {
+  id        String   @id @default(uuid())
+  couponId  String
+  userId    String
+  courseId  String
+  discount  Decimal  // actual discount amount applied
+  redeemedAt DateTime @default(now())
+
+  // Relations
+  coupon Coupon @relation(fields: [couponId], references: [id])
+  user   User   @relation("CouponRedemptions", fields: [userId], references: [id])
+
+  @@unique([couponId, userId, courseId])
+  @@map("coupon_redemptions")
+}
+
+// ============================================================
+// DISPUTES
+// ============================================================
+
+model Dispute {
+  id             String               @id @default(uuid())
+  filedById      String               // student who filed
+  referenceType  DisputeReferenceType
+  referenceId    String               // enrollmentId or payment txHash
+  subject        String
+  description    String
+  status         DisputeStatus        @default(OPEN)
+  adminNotes     String?
+  resolvedById   String?              // admin who resolved
+  resolvedAt     DateTime?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  // Relations
+  filedBy    User  @relation("DisputesFiled", fields: [filedById], references: [id])
+  resolvedBy User? @relation("DisputesResolved", fields: [resolvedById], references: [id])
+
+  @@index([filedById])
+  @@index([status])
+  @@map("disputes")
+}
+
+// ============================================================
+// KYC (Know Your Customer — instructor identity verification)
+// ============================================================
+
+model KycSubmission {
+  id             String          @id @default(uuid())
+  instructorId   String
+  documentType   KycDocumentType
+  documentUrl    String          // uploaded file path / URL
+  additionalUrl  String?         // second document (e.g. selfie)
+  status         KycStatus       @default(PENDING)
+  adminNotes     String?
+  reviewedById   String?
+  reviewedAt     DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  // Relations
+  instructor  User  @relation("KycSubmissions", fields: [instructorId], references: [id])
+  reviewedBy  User? @relation("KycReviews", fields: [reviewedById], references: [id])
+
+  @@index([instructorId])
+  @@index([status])
+  @@map("kyc_submissions")
+}
+
 model AbuseReport {
   id             String           @id @default(uuid())
   reporterId     String
@@ -494,6 +687,8 @@ model CourseReview {
   @@unique([courseId, studentId])
   @@index([courseId])
   @@map("course_reviews")
+}
+
 model DiscussionComment {
   id              String               @id @default(uuid())
   discussionId    String
@@ -512,4 +707,97 @@ model DiscussionComment {
   @@index([discussionId])
   @@index([authorId])
   @@map("discussion_comments")
+}
+
+model Refund {
+  id              String       @id @default(uuid())
+  enrollmentId    String
+  studentId       String
+  reason          String
+  requestedAmount Decimal      // USDC requested by the student
+  approvedAmount  Decimal?     // USDC approved by the admin (may be partial)
+  isPartial       Boolean      @default(false)
+  status          RefundStatus @default(PENDING)
+  adminNote       String?
+  txHash          String?      // on-chain refund transaction, set once processed
+  processedAt     DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  // Relations
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id])
+  student    User       @relation(fields: [studentId], references: [id])
+
+  @@index([enrollmentId])
+  @@index([studentId])
+  @@index([status])
+  @@map("refunds")
+}
+
+model Bundle {
+  id                String   @id @default(uuid())
+  instructorAddress String
+  title             String
+  description       String?
+  price             Decimal  // USDC, discounted vs sum of individual course prices
+  thumbnailUrl      String?
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  instructor  User               @relation("InstructorBundles", fields: [instructorAddress], references: [stellarAddress])
+  courses     BundleCourse[]
+  enrollments BundleEnrollment[]
+
+  @@index([instructorAddress])
+  @@map("bundles")
+}
+
+model BundleCourse {
+  id       String @id @default(uuid())
+  bundleId String
+  courseId String
+
+  // Relations
+  bundle Bundle @relation(fields: [bundleId], references: [id])
+  course Course @relation(fields: [courseId], references: [id])
+
+  @@unique([bundleId, courseId])
+  @@map("bundle_courses")
+}
+
+model BundleEnrollment {
+  id         String   @id @default(uuid())
+  bundleId   String
+  studentId  String
+  amountPaid Decimal  // USDC
+  txHash     String?  // on-chain bundle purchase tx
+  enrolledAt DateTime @default(now())
+
+  // Relations
+  bundle  Bundle @relation(fields: [bundleId], references: [id])
+  student User   @relation(fields: [studentId], references: [id])
+
+  @@unique([bundleId, studentId])
+  @@map("bundle_enrollments")
+}
+
+model Invoice {
+  id            String   @id @default(uuid())
+  invoiceNumber Int      @unique @default(autoincrement())
+  enrollmentId  String   @unique
+  studentId     String
+  courseId      String
+  amount        Decimal  // USDC amount invoiced
+  txHash        String?
+  emailSent     Boolean  @default(false)
+  issuedAt      DateTime @default(now())
+
+  // Relations
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id])
+  student    User       @relation(fields: [studentId], references: [id])
+  course     Course     @relation(fields: [courseId], references: [id])
+
+  @@map("invoices")
 }

@@ -4,11 +4,11 @@ import { KycStatus } from '@prisma/client';
 
 export class ReviewKycDto {
   @ApiProperty({
-    enum: [KycStatus.APPROVED, KycStatus.REJECTED, KycStatus.UNDER_REVIEW],
+    enum: KycStatus,
     description: 'The new verification status',
   })
   @IsEnum(KycStatus)
-  status: KycStatus.APPROVED | KycStatus.REJECTED | KycStatus.UNDER_REVIEW;
+  status: KycStatus;
 
   @ApiProperty({
     required: false,

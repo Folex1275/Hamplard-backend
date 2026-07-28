@@ -132,12 +132,12 @@ export class KycService {
   async review(id: string, adminId: string, dto: ReviewKycDto) {
     const submission = await this.findOne(id);
 
-    const reviewableStatuses = [KycStatus.PENDING, KycStatus.UNDER_REVIEW];
+    const reviewableStatuses: KycStatus[] = [KycStatus.PENDING, KycStatus.UNDER_REVIEW];
     if (!reviewableStatuses.includes(submission.status)) {
       throw new BadRequestException('Only PENDING or UNDER_REVIEW submissions can be reviewed');
     }
 
-    const finalStatuses = [KycStatus.APPROVED, KycStatus.REJECTED];
+    const finalStatuses: KycStatus[] = [KycStatus.APPROVED, KycStatus.REJECTED];
     const isTransitioning = !finalStatuses.includes(dto.status as KycStatus);
 
     const updated = await this.prisma.kycSubmission.update({
