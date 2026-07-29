@@ -24,6 +24,9 @@ import { LiveSessionsModule } from './modules/live-sessions/live-sessions.module
 import { PayoutsModule }      from './modules/payouts/payouts.module';
 import { ReportsModule }      from './modules/reports/reports.module';
 import { ReviewsModule }      from './modules/reviews/reviews.module';
+import { AdminModule }        from './modules/admin/admin.module';
+import { ModerationModule }   from './modules/moderation/moderation.module';
+import { GamificationModule } from './modules/gamification/gamification.module';
 
 @Module({
   imports: [
@@ -62,6 +65,9 @@ import { ReviewsModule }      from './modules/reviews/reviews.module';
     PayoutsModule,
     ReportsModule,
     ReviewsModule,
+    AdminModule,
+    ModerationModule,
+    GamificationModule,
   ],
 })
 export class AppModule {}

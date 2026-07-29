@@ -128,14 +128,14 @@ export class DisputesService {
   async resolve(id: string, adminId: string, dto: ResolveDisputeDto) {
     const dispute = await this.findOne(id);
 
-    const resolvableStatuses = [DisputeStatus.OPEN, DisputeStatus.UNDER_REVIEW];
+    const resolvableStatuses: DisputeStatus[] = [DisputeStatus.OPEN, DisputeStatus.UNDER_REVIEW];
     if (!resolvableStatuses.includes(dispute.status)) {
       throw new BadRequestException(
         'Only OPEN or UNDER_REVIEW disputes can be resolved',
       );
     }
 
-    const resolvedStatuses = [
+    const resolvedStatuses: DisputeStatus[] = [
       DisputeStatus.RESOLVED,
       DisputeStatus.REJECTED,
       DisputeStatus.CLOSED,
