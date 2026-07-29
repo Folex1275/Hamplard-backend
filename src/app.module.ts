@@ -28,6 +28,7 @@ import { AdminModule }        from './modules/admin/admin.module';
 import { ModerationModule }   from './modules/moderation/moderation.module';
 import { GamificationModule } from './modules/gamification/gamification.module';
 import { ReferralsModule }    from './modules/referrals/referrals.module';
+import { AuditLogModule }     from './modules/audit-log/audit-log.module';
 
 @Module({
   imports: [
@@ -70,6 +71,7 @@ import { ReferralsModule }    from './modules/referrals/referrals.module';
     ModerationModule,
     GamificationModule,
     ReferralsModule,
+    AuditLogModule,
   ],
 })
 export class AppModule {}

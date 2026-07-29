@@ -241,6 +241,10 @@ model User {
   referralsMade       Referral[]            @relation("ReferralsMade")
   referralReceived    Referral?             @relation("ReferredBy")
   referralRewards     ReferralReward[]      @relation("ReferralRewards")
+  deviceTokens        NotificationDeviceToken[]
+  notificationPreferences NotificationPreference[]
+  digestPreference    NotificationDigestPreference?
+  auditLogs           AdminAuditLog[]       @relation("AuditLogActor")
 
   @@map("users")
 }
@@ -472,6 +476,52 @@ model Notification {
   @@index([userId])
   @@index([read])
   @@map("notifications")
+}
+
+model NotificationDeviceToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  platform  String?  @default("mobile")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([isActive])
+  @@map("notification_device_tokens")
+}
+
+model NotificationPreference {
+  id        String           @id @default(uuid())
+  userId    String
+  type      NotificationType
+  email     Boolean          @default(true)
+  push      Boolean          @default(true)
+  inApp     Boolean          @default(true)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, type])
+  @@index([userId])
+  @@map("notification_preferences")
+}
+
+model NotificationDigestPreference {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  emailEnabled  Boolean  @default(true)
+  lastDigestAt  DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("notification_digest_preferences")
 }
 
 model Exam {
@@ -891,4 +941,82 @@ model ReferralReward {
   @@index([beneficiaryId, status])
   @@index([referralId])
   @@map("referral_rewards")
+// ADMIN AUDIT LOG
+// ============================================================
+
+enum AuditAction {
+  // User management
+  USER_BANNED
+  USER_UNBANNED
+  USER_ROLE_CHANGED
+
+  // Course lifecycle
+  COURSE_APPROVED
+  COURSE_REJECTED
+  COURSE_PAUSED
+  COURSE_ARCHIVED
+
+  // KYC
+  KYC_APPROVED
+  KYC_REJECTED
+
+  // Disputes
+  DISPUTE_RESOLVED
+  DISPUTE_REJECTED
+  DISPUTE_CLOSED
+
+  // Refunds
+  REFUND_APPROVED
+  REFUND_REJECTED
+  REFUND_PROCESSED
+
+  // Payouts
+  PAYOUT_PROCESSED
+  PAYOUT_SCHEDULED
+
+  // Coupons
+  COUPON_CREATED
+  COUPON_DEACTIVATED
+
+  // Abuse reports
+  REPORT_RESOLVED
+  REPORT_DISMISSED
+
+  // Admin impersonation
+  IMPERSONATION_STARTED
+  IMPERSONATION_ENDED
+
+  // Generic admin note
+  ADMIN_MANUAL_NOTE
+}
+
+enum AuditTargetType {
+  USER
+  COURSE
+  KYC_SUBMISSION
+  DISPUTE
+  REFUND
+  PAYOUT
+  COUPON
+  ABUSE_REPORT
+}
+
+model AdminAuditLog {
+  id         String          @id @default(uuid())
+  actorId    String          // The admin who performed the action
+  action     AuditAction
+  targetType AuditTargetType
+  targetId   String          // ID of the entity acted upon
+  metadata   Json?           // Extra context: old/new values, notes, etc.
+  ipAddress  String?         // Request IP for compliance tracing
+  createdAt  DateTime        @default(now()) // Intentionally no updatedAt — entries are immutable
+
+  // Relations
+  actor User @relation("AuditLogActor", fields: [actorId], references: [id])
+
+  @@index([actorId])
+  @@index([action])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+  @@map("admin_audit_logs")
 }
