@@ -5,3 +5,8 @@ dist/
 coverage/
 uploads/
 .DS_Store
+
+.agents/
+.claude/
+issue.md
+skills-lock.json

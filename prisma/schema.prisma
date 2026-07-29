@@ -49,6 +49,12 @@ enum QuestionType {
   SHORT_ANSWER
 }
 
+enum CommentReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum AssignmentStatus {
   PENDING       // student not submitted yet
   SUBMITTED     // student submitted, awaiting review
@@ -68,29 +74,109 @@ enum NotificationType {
   CERTIFICATE_ISSUED
   NEW_ENROLLMENT        // for instructors
   PAYMENT_RECEIVED      // for instructors
-  REVIEW_FLAGGED        // admin notified of flagged review
-  REVIEW_REMOVED        // reviewer notified their review was removed
-  REVIEW_APPROVED       // reviewer notified their review was approved
+  LIVE_SESSION_REMINDER // for scheduled live sessions
+  DISPUTE_FILED
+  DISPUTE_RESOLVED
+  KYC_APPROVED
+  KYC_REJECTED
+  PAYOUT_PROCESSED
+  PAYOUT_SCHEDULED
+  REFUND_REQUESTED
+  REFUND_APPROVED
+  REFUND_REJECTED
+  REFUND_PROCESSED
 }
 
-enum ReviewStatus {
-  VISIBLE      // published and shown to all users
-  FLAGGED      // has reached flag threshold, awaiting moderation
-  APPROVED     // admin explicitly approved (cleared from moderation queue)
-  REMOVED      // admin removed the review
+enum RefundStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PROCESSED
 }
 
-enum FlagReason {
-  SPAM
-  INAPPROPRIATE
-  FAKE
-  OFFENSIVE
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  REJECTED
+  CLOSED
+}
+
+enum DisputeReferenceType {
+  ENROLLMENT
+  PAYMENT
+}
+
+enum KycStatus {
+  PENDING
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum KycDocumentType {
+  NATIONAL_ID
+  PASSPORT
+  DRIVERS_LICENSE
+  UTILITY_BILL
+  BANK_STATEMENT
   OTHER
 }
 
-enum ModerationAction {
-  APPROVED   // admin cleared the review
-  REMOVED    // admin removed the review
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum PayoutFrequency {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+}
+
+enum LiveSessionStatus {
+  SCHEDULED
+  RESCHEDULED
+  CANCELLED
+  COMPLETED
+}
+
+enum ReportTargetType {
+  COURSE
+  COMMENT
+  PROFILE
+}
+
+enum ReportCategory {
+  SPAM
+  HARASSMENT
+  HATE_SPEECH
+  MISINFORMATION
+  INAPPROPRIATE_CONTENT
+  SCAM_FRAUD
+  COPYRIGHT
+  OTHER
+}
+
+enum ReportSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ReportStatus {
+  PENDING        // submitted, awaiting moderator review
+  UNDER_REVIEW   // a moderator has picked it up
+  RESOLVED       // action was taken on the target
+  DISMISSED      // reviewed, no action needed
 }
 
 // ============================================================
@@ -110,14 +196,28 @@ model User {
   updatedAt      DateTime  @updatedAt
 
   // Relations
-  coursesCreated Course[]      @relation("InstructorCourses")
-  enrollments    Enrollment[]
-  assignments    AssignmentSubmission[]
-  notifications  Notification[]
-  certificates   Certificate[]
-  reviews        Review[]
-  reviewFlags    ReviewFlag[]
-  moderationLogs ModerationLog[]
+  coursesCreated      Course[]              @relation("InstructorCourses")
+  enrollments         Enrollment[]
+  assignments         AssignmentSubmission[]
+  notifications       Notification[]
+  certificates        Certificate[]
+  examAttempts        ExamAttempt[]
+  payouts             Payout[]              @relation("Payouts")
+  reportsFiled        AbuseReport[]         @relation("ReportsFiled")
+  reportsHandled      AbuseReport[]         @relation("ReportsHandled")
+  reviews             CourseReview[]
+  discussionComments  DiscussionComment[]
+  refundRequests      Refund[]
+  bundlesCreated      Bundle[]              @relation("InstructorBundles")
+  bundleEnrollments   BundleEnrollment[]
+  invoices            Invoice[]
+  couponsCreated      Coupon[]              @relation("CouponCreator")
+  couponRedemptions   CouponRedemption[]    @relation("CouponRedemptions")
+  disputesFiled       Dispute[]             @relation("DisputesFiled")
+  disputesResolved    Dispute[]             @relation("DisputesResolved")
+  kycSubmissions      KycSubmission[]       @relation("KycSubmissions")
+  kycReviews          KycSubmission[]       @relation("KycReviews")
+  payoutSchedule      PayoutSchedule?       @relation("PayoutSchedule")
 
   @@map("users")
 }
@@ -139,6 +239,8 @@ model Course {
   totalDuration       Int          @default(0) // minutes
   totalEnrollments    Int          @default(0)
   totalRevenue        Decimal      @default(0)
+  avgRating           Float        @default(0)
+  totalReviews        Int          @default(0)
   txHash              String?      // on-chain registration tx
   approvedAt          DateTime?
   createdAt           DateTime     @default(now())
@@ -150,7 +252,12 @@ model Course {
   enrollments   Enrollment[]
   certificates  Certificate[]
   events        ChainEvent[]
-  reviews       Review[]
+  exam          Exam?
+  liveSessions  LiveSession[]
+  reviews       CourseReview[]
+  bundleCourses BundleCourse[]
+  invoices      Invoice[]
+  coupons       Coupon[]
 
   @@map("courses")
 }
@@ -264,6 +371,8 @@ model Enrollment {
   student       User            @relation(fields: [studentId], references: [id])
   course        Course          @relation(fields: [courseId], references: [id])
   lessonProgress LessonProgress[]
+  refunds       Refund[]
+  invoice       Invoice?
 
   @@unique([studentId, courseId])
   @@map("enrollments")
@@ -342,64 +451,353 @@ model Notification {
   @@map("notifications")
 }
 
-// ============================================================
-// REVIEWS & MODERATION
-// ============================================================
+model Exam {
+  id            String        @id @default(uuid())
+  courseId      String        @unique
+  title         String
+  description   String?
+  passingScore  Int           @default(70) // percentage 0-100
+  cooldownHours Int           @default(24) // retake cooldown in hours
+  questions     Json          // Array of exam questions with correct answers
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
-model Review {
-  id         String       @id @default(uuid())
-  courseId   String
-  authorId   String
-  rating     Int          // 1–5
-  title      String?
-  body       String
-  status     ReviewStatus @default(VISIBLE)
-  flagCount  Int          @default(0)  // denormalised for fast queue queries
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
+  course        Course        @relation(fields: [courseId], references: [id])
+  attempts      ExamAttempt[]
 
-  // Relations
-  course         Course          @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  author         User            @relation(fields: [authorId], references: [id])
-  flags          ReviewFlag[]
-  moderationLogs ModerationLog[]
+  @@map("exams")
+}
 
-  @@unique([courseId, authorId]) // one review per student per course
+model ExamAttempt {
+  id          String   @id @default(uuid())
+  examId      String
+  studentId   String
+  score       Int      // score percentage achieved
+  passed      Boolean
+  answers     Json?    // Submitted answers
+  attemptedAt DateTime @default(now())
+
+  exam        Exam     @relation(fields: [examId], references: [id])
+  student     User     @relation(fields: [studentId], references: [id])
+
+  @@index([examId, studentId])
+  @@map("exam_attempts")
+}
+
+model LiveSession {
+  id                String            @id @default(uuid())
+  courseId          String
+  instructorAddress String
+  title             String
+  description       String?
+  scheduledAt       DateTime
+  durationMinutes   Int               @default(60)
+  capacity          Int               @default(50)
+  meetingUrl        String?
+  status            LiveSessionStatus @default(SCHEDULED)
+  reminderSent      Boolean           @default(false)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  course            Course            @relation(fields: [courseId], references: [id])
+
   @@index([courseId])
+  @@index([instructorAddress])
+  @@index([scheduledAt, status])
+  @@map("live_sessions")
+}
+
+model PayoutSchedule {
+  id                String          @id @default(uuid())
+  instructorId      String          @unique
+  frequency         PayoutFrequency @default(MONTHLY)
+  minimumThreshold  Decimal         @default(10) // minimum USDC to trigger payout
+  stellarAddress    String          // payout destination address
+  isActive          Boolean         @default(true)
+  nextPayoutDate    DateTime
+  lastPayoutDate    DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  // Relations
+  instructor User     @relation("PayoutSchedule", fields: [instructorId], references: [id])
+  payouts    Payout[]
+
+  @@map("payout_schedules")
+}
+
+model Payout {
+  id               String          @id @default(uuid())
+  scheduleId       String?
+  instructorId     String
+  amount           Decimal         // USDC amount
+  currency         String          @default("USDC")
+  status           PayoutStatus    @default(PENDING)
+  txHash           String?         // on-chain payout tx
+  periodStart      DateTime?
+  periodEnd        DateTime?
+  notes            String?
+  processedAt      DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  // Relations
+  schedule    PayoutSchedule? @relation(fields: [scheduleId], references: [id])
+  instructor  User            @relation("Payouts", fields: [instructorId], references: [id])
+
+  @@index([instructorId])
   @@index([status])
-  @@map("reviews")
+  @@map("payouts")
 }
 
-model ReviewFlag {
-  id        String     @id @default(uuid())
-  reviewId  String
-  reporterId String
-  reason    FlagReason
-  details   String?
-  createdAt DateTime   @default(now())
+// ============================================================
+// COUPONS
+// ============================================================
+
+model Coupon {
+  id              String       @id @default(uuid())
+  code            String       @unique
+  discountType    DiscountType
+  discountValue   Decimal      // percentage (0-100) or fixed USDC amount
+  maxRedemptions  Int?         // null = unlimited
+  redeemedCount   Int          @default(0)
+  minOrderAmount  Decimal?     // minimum cart total to apply coupon
+  expiresAt       DateTime?    // null = never expires
+  isActive        Boolean      @default(true)
+  createdById     String       // User (ADMIN or INSTRUCTOR) who created it
+  courseId        String?      // null = platform-wide, set = specific course only
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 
   // Relations
-  review   Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
-  reporter User   @relation(fields: [reporterId], references: [id])
+  createdBy   User          @relation("CouponCreator", fields: [createdById], references: [id])
+  course      Course?       @relation(fields: [courseId], references: [id])
+  redemptions CouponRedemption[]
 
-  @@unique([reviewId, reporterId]) // one flag per user per review
-  @@index([reviewId])
-  @@map("review_flags")
+  @@map("coupons")
 }
 
-model ModerationLog {
-  id          String           @id @default(uuid())
-  reviewId    String
-  moderatorId String
-  action      ModerationAction
-  reason      String?
-  createdAt   DateTime         @default(now())
+model CouponRedemption {
+  id        String   @id @default(uuid())
+  couponId  String
+  userId    String
+  courseId  String
+  discount  Decimal  // actual discount amount applied
+  redeemedAt DateTime @default(now())
 
   // Relations
-  review    Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
-  moderator User   @relation(fields: [moderatorId], references: [id])
+  coupon Coupon @relation(fields: [couponId], references: [id])
+  user   User   @relation("CouponRedemptions", fields: [userId], references: [id])
 
-  @@index([reviewId])
-  @@index([moderatorId])
-  @@map("moderation_logs")
+  @@unique([couponId, userId, courseId])
+  @@map("coupon_redemptions")
+}
+
+// ============================================================
+// DISPUTES
+// ============================================================
+
+model Dispute {
+  id             String               @id @default(uuid())
+  filedById      String               // student who filed
+  referenceType  DisputeReferenceType
+  referenceId    String               // enrollmentId or payment txHash
+  subject        String
+  description    String
+  status         DisputeStatus        @default(OPEN)
+  adminNotes     String?
+  resolvedById   String?              // admin who resolved
+  resolvedAt     DateTime?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  // Relations
+  filedBy    User  @relation("DisputesFiled", fields: [filedById], references: [id])
+  resolvedBy User? @relation("DisputesResolved", fields: [resolvedById], references: [id])
+
+  @@index([filedById])
+  @@index([status])
+  @@map("disputes")
+}
+
+// ============================================================
+// KYC (Know Your Customer — instructor identity verification)
+// ============================================================
+
+model KycSubmission {
+  id             String          @id @default(uuid())
+  instructorId   String
+  documentType   KycDocumentType
+  documentUrl    String          // uploaded file path / URL
+  additionalUrl  String?         // second document (e.g. selfie)
+  status         KycStatus       @default(PENDING)
+  adminNotes     String?
+  reviewedById   String?
+  reviewedAt     DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  // Relations
+  instructor  User  @relation("KycSubmissions", fields: [instructorId], references: [id])
+  reviewedBy  User? @relation("KycReviews", fields: [reviewedById], references: [id])
+
+  @@index([instructorId])
+  @@index([status])
+  @@map("kyc_submissions")
+}
+
+model AbuseReport {
+  id             String           @id @default(uuid())
+  reporterId     String
+  targetType     ReportTargetType
+  targetId       String           // no cross-table FK: targetType decides which table targetId refers to
+  category       ReportCategory
+  severity       ReportSeverity   @default(MEDIUM)
+  description    String?
+  status         ReportStatus     @default(PENDING)
+  resolvedById   String?
+  resolutionNote String?
+  resolvedAt     DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  // Relations
+  reporter   User  @relation("ReportsFiled", fields: [reporterId], references: [id])
+  resolvedBy User? @relation("ReportsHandled", fields: [resolvedById], references: [id])
+
+  @@index([targetType, targetId])
+  @@index([status])
+  @@index([reporterId])
+  @@map("abuse_reports")
+}
+
+model CourseReview {
+  id        String   @id @default(uuid())
+  courseId  String
+  studentId String
+  rating    Int      // 1-5
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  course  Course @relation(fields: [courseId], references: [id])
+  student User   @relation(fields: [studentId], references: [id])
+
+  @@unique([courseId, studentId])
+  @@index([courseId])
+  @@map("course_reviews")
+}
+
+model DiscussionComment {
+  id              String               @id @default(uuid())
+  discussionId    String
+  authorId        String
+  content         String
+  hidden          Boolean              @default(false)
+  flaggedCount    Int                  @default(0)
+  reviewStatus    CommentReviewStatus  @default(PENDING)
+  moderationNotes String?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  // Relations
+  author User @relation(fields: [authorId], references: [id])
+
+  @@index([discussionId])
+  @@index([authorId])
+  @@map("discussion_comments")
+}
+
+model Refund {
+  id              String       @id @default(uuid())
+  enrollmentId    String
+  studentId       String
+  reason          String
+  requestedAmount Decimal      // USDC requested by the student
+  approvedAmount  Decimal?     // USDC approved by the admin (may be partial)
+  isPartial       Boolean      @default(false)
+  status          RefundStatus @default(PENDING)
+  adminNote       String?
+  txHash          String?      // on-chain refund transaction, set once processed
+  processedAt     DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  // Relations
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id])
+  student    User       @relation(fields: [studentId], references: [id])
+
+  @@index([enrollmentId])
+  @@index([studentId])
+  @@index([status])
+  @@map("refunds")
+}
+
+model Bundle {
+  id                String   @id @default(uuid())
+  instructorAddress String
+  title             String
+  description       String?
+  price             Decimal  // USDC, discounted vs sum of individual course prices
+  thumbnailUrl      String?
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  instructor  User               @relation("InstructorBundles", fields: [instructorAddress], references: [stellarAddress])
+  courses     BundleCourse[]
+  enrollments BundleEnrollment[]
+
+  @@index([instructorAddress])
+  @@map("bundles")
+}
+
+model BundleCourse {
+  id       String @id @default(uuid())
+  bundleId String
+  courseId String
+
+  // Relations
+  bundle Bundle @relation(fields: [bundleId], references: [id])
+  course Course @relation(fields: [courseId], references: [id])
+
+  @@unique([bundleId, courseId])
+  @@map("bundle_courses")
+}
+
+model BundleEnrollment {
+  id         String   @id @default(uuid())
+  bundleId   String
+  studentId  String
+  amountPaid Decimal  // USDC
+  txHash     String?  // on-chain bundle purchase tx
+  enrolledAt DateTime @default(now())
+
+  // Relations
+  bundle  Bundle @relation(fields: [bundleId], references: [id])
+  student User   @relation(fields: [studentId], references: [id])
+
+  @@unique([bundleId, studentId])
+  @@map("bundle_enrollments")
+}
+
+model Invoice {
+  id            String   @id @default(uuid())
+  invoiceNumber Int      @unique @default(autoincrement())
+  enrollmentId  String   @unique
+  studentId     String
+  courseId      String
+  amount        Decimal  // USDC amount invoiced
+  txHash        String?
+  emailSent     Boolean  @default(false)
+  issuedAt      DateTime @default(now())
+
+  // Relations
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id])
+  student    User       @relation(fields: [studentId], references: [id])
+  course     Course     @relation(fields: [courseId], references: [id])
+
+  @@map("invoices")
 }

@@ -82,6 +82,43 @@ export class NotificationsService {
     });
   }
 
+  /** Emails a generated invoice PDF to the student. */
+  async sendInvoiceEmail(
+    to: string,
+    invoiceNumber: number,
+    courseTitle: string,
+    pdfBuffer: Buffer,
+  ): Promise<boolean> {
+    const platformName = this.config.get('PLATFORM_NAME', 'Hamplard');
+    try {
+      await this.transporter.sendMail({
+        from: this.config.get('EMAIL_FROM', 'noreply@hamplard.com'),
+        to,
+        subject: `🧾 ${platformName} — Invoice #${invoiceNumber}`,
+        text: `Thank you for your purchase of "${courseTitle}". Your invoice #${invoiceNumber} is attached.`,
+        html: `
+          <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;">
+            <h2 style="color:#059669;">${platformName}</h2>
+            <p style="color:#444;line-height:1.6;">
+              Thank you for your purchase of "${courseTitle}". Your invoice #${invoiceNumber} is attached.
+            </p>
+          </div>
+        `,
+        attachments: [
+          {
+            filename: `invoice-${invoiceNumber}.pdf`,
+            content: pdfBuffer,
+            contentType: 'application/pdf',
+          },
+        ],
+      });
+      return true;
+    } catch (error) {
+      this.logger.error(`Invoice email failed to ${to}`, error.message);
+      return false;
+    }
+  }
+
   private async sendEmail(
     to: string,
     subject: string,
@@ -100,6 +137,12 @@ export class NotificationsService {
       ASSIGNMENT_SUBMITTED:  '📋',
       PAYMENT_RECEIVED:      '💰',
       NEW_ENROLLMENT:        '👋',
+      DISPUTE_FILED:         '⚠️',
+      DISPUTE_RESOLVED:      '✅',
+      KYC_APPROVED:          '🪪',
+      KYC_REJECTED:          '❌',
+      PAYOUT_PROCESSED:      '💸',
+      PAYOUT_SCHEDULED:      '📅',
     };
 
     try {

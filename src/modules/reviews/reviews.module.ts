@@ -1,13 +1,13 @@
+// reviews.module.ts
 import { Module } from '@nestjs/common';
 import { ReviewsController } from './reviews.controller';
 import { ReviewsService } from './reviews.service';
-import { ModerationService } from './moderation.service';
-import { NotificationsModule } from '../notifications/notifications.module';
+import { EnrollmentsModule } from '../enrollments/enrollments.module';
 
 @Module({
-  imports: [NotificationsModule],
+  imports: [EnrollmentsModule],
   controllers: [ReviewsController],
-  providers: [ReviewsService, ModerationService],
-  exports: [ReviewsService, ModerationService],
+  providers: [ReviewsService],
+  exports: [ReviewsService],
 })
 export class ReviewsModule {}

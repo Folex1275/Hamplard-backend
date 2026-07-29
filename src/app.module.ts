@@ -15,10 +15,18 @@ import { EnrollmentsModule }  from './modules/enrollments/enrollments.module';
 import { AssignmentsModule }  from './modules/assignments/assignments.module';
 import { CertificatesModule } from './modules/certificates/certificates.module';
 import { EventsModule }       from './modules/events/events.module';
-import { NotificationsModule }from './modules/notifications/notifications.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { DiscussionsModule }  from './modules/discussions/discussions.module';
 import { HealthModule }       from './modules/health/health.module';
 import { QuizzesModule }      from './modules/quizzes/quizzes.module';
+import { ExamsModule }        from './modules/exams/exams.module';
+import { LiveSessionsModule } from './modules/live-sessions/live-sessions.module';
+import { PayoutsModule }      from './modules/payouts/payouts.module';
+import { ReportsModule }      from './modules/reports/reports.module';
 import { ReviewsModule }      from './modules/reviews/reviews.module';
+import { AdminModule }        from './modules/admin/admin.module';
+import { ModerationModule }   from './modules/moderation/moderation.module';
+import { GamificationModule } from './modules/gamification/gamification.module';
 
 @Module({
   imports: [
@@ -49,9 +57,17 @@ import { ReviewsModule }      from './modules/reviews/reviews.module';
     CertificatesModule,
     EventsModule,
     NotificationsModule,
+    DiscussionsModule,
     HealthModule,
     QuizzesModule,
+    ExamsModule,
+    LiveSessionsModule,
+    PayoutsModule,
+    ReportsModule,
     ReviewsModule,
+    AdminModule,
+    ModerationModule,
+    GamificationModule,
   ],
 })
 export class AppModule {}

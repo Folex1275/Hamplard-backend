@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { CoursesService } from './courses.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { FeeCalculatorService } from '../billing/fee-calculator.service';
 import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { CourseStatus } from '@prisma/client';
 
@@ -49,6 +50,7 @@ describe('CoursesService', () => {
         CoursesService,
         { provide: PrismaService,       useValue: mockPrisma },
         { provide: NotificationsService, useValue: mockNotifications },
+        FeeCalculatorService,
       ],
     }).compile();
 
