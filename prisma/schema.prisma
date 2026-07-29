@@ -218,6 +218,7 @@ model User {
   kycSubmissions      KycSubmission[]       @relation("KycSubmissions")
   kycReviews          KycSubmission[]       @relation("KycReviews")
   payoutSchedule      PayoutSchedule?       @relation("PayoutSchedule")
+  auditLogs           AdminAuditLog[]       @relation("AuditLogActor")
 
   @@map("users")
 }
@@ -800,4 +801,85 @@ model Invoice {
   course     Course     @relation(fields: [courseId], references: [id])
 
   @@map("invoices")
+}
+
+// ============================================================
+// ADMIN AUDIT LOG
+// ============================================================
+
+enum AuditAction {
+  // User management
+  USER_BANNED
+  USER_UNBANNED
+  USER_ROLE_CHANGED
+
+  // Course lifecycle
+  COURSE_APPROVED
+  COURSE_REJECTED
+  COURSE_PAUSED
+  COURSE_ARCHIVED
+
+  // KYC
+  KYC_APPROVED
+  KYC_REJECTED
+
+  // Disputes
+  DISPUTE_RESOLVED
+  DISPUTE_REJECTED
+  DISPUTE_CLOSED
+
+  // Refunds
+  REFUND_APPROVED
+  REFUND_REJECTED
+  REFUND_PROCESSED
+
+  // Payouts
+  PAYOUT_PROCESSED
+  PAYOUT_SCHEDULED
+
+  // Coupons
+  COUPON_CREATED
+  COUPON_DEACTIVATED
+
+  // Abuse reports
+  REPORT_RESOLVED
+  REPORT_DISMISSED
+
+  // Admin impersonation
+  IMPERSONATION_STARTED
+  IMPERSONATION_ENDED
+
+  // Generic admin note
+  ADMIN_MANUAL_NOTE
+}
+
+enum AuditTargetType {
+  USER
+  COURSE
+  KYC_SUBMISSION
+  DISPUTE
+  REFUND
+  PAYOUT
+  COUPON
+  ABUSE_REPORT
+}
+
+model AdminAuditLog {
+  id         String          @id @default(uuid())
+  actorId    String          // The admin who performed the action
+  action     AuditAction
+  targetType AuditTargetType
+  targetId   String          // ID of the entity acted upon
+  metadata   Json?           // Extra context: old/new values, notes, etc.
+  ipAddress  String?         // Request IP for compliance tracing
+  createdAt  DateTime        @default(now()) // Intentionally no updatedAt — entries are immutable
+
+  // Relations
+  actor User @relation("AuditLogActor", fields: [actorId], references: [id])
+
+  @@index([actorId])
+  @@index([action])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+  @@map("admin_audit_logs")
 }
