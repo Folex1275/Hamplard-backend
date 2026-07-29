@@ -218,6 +218,9 @@ model User {
   kycSubmissions      KycSubmission[]       @relation("KycSubmissions")
   kycReviews          KycSubmission[]       @relation("KycReviews")
   payoutSchedule      PayoutSchedule?       @relation("PayoutSchedule")
+  deviceTokens        NotificationDeviceToken[]
+  notificationPreferences NotificationPreference[]
+  digestPreference    NotificationDigestPreference?
 
   @@map("users")
 }
@@ -449,6 +452,52 @@ model Notification {
   @@index([userId])
   @@index([read])
   @@map("notifications")
+}
+
+model NotificationDeviceToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  platform  String?  @default("mobile")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([isActive])
+  @@map("notification_device_tokens")
+}
+
+model NotificationPreference {
+  id        String           @id @default(uuid())
+  userId    String
+  type      NotificationType
+  email     Boolean          @default(true)
+  push      Boolean          @default(true)
+  inApp     Boolean          @default(true)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, type])
+  @@index([userId])
+  @@map("notification_preferences")
+}
+
+model NotificationDigestPreference {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  emailEnabled  Boolean  @default(true)
+  lastDigestAt  DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("notification_digest_preferences")
 }
 
 model Exam {
