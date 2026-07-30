@@ -29,6 +29,7 @@ import { ModerationModule }   from './modules/moderation/moderation.module';
 import { GamificationModule } from './modules/gamification/gamification.module';
 import { ReferralsModule }    from './modules/referrals/referrals.module';
 import { AuditLogModule }     from './modules/audit-log/audit-log.module';
+import { UploadsModule }      from './modules/uploads/uploads.module';
 
 @Module({
   imports: [
@@ -72,6 +73,7 @@ import { AuditLogModule }     from './modules/audit-log/audit-log.module';
     GamificationModule,
     ReferralsModule,
     AuditLogModule,
+    UploadsModule,
   ],
 })
 export class AppModule {}

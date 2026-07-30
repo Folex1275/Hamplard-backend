@@ -941,6 +941,9 @@ model ReferralReward {
   @@index([beneficiaryId, status])
   @@index([referralId])
   @@map("referral_rewards")
+}
+
+// ============================================================
 // ADMIN AUDIT LOG
 // ============================================================
 
