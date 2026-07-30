@@ -86,6 +86,7 @@ enum NotificationType {
   REFUND_REJECTED
   REFUND_PROCESSED
   REFERRAL_REWARD_ISSUED
+  COURSE_INTEREST_REMINDER
 }
 
 enum RefundStatus {
@@ -198,6 +199,29 @@ enum ReferralRewardKind {
   REFEREE        // welcome discount for the new user
 }
 
+enum SmsStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+}
+
+enum SmsTemplateKey {
+  ACCOUNT_VERIFICATION
+  ENROLLMENT_CONFIRMED
+  PAYMENT_RECEIVED
+  PASSWORD_RESET
+  GENERIC_ALERT
+}
+
+enum PointsActivityType {
+  DAILY_LOGIN
+  LESSON_COMPLETED
+  ASSIGNMENT_SUBMITTED
+  EXAM_PASSED
+  COURSE_COMPLETED
+}
+
 // ============================================================
 // MODELS
 // ============================================================
@@ -245,6 +269,12 @@ model User {
   notificationPreferences NotificationPreference[]
   digestPreference    NotificationDigestPreference?
   auditLogs           AdminAuditLog[]       @relation("AuditLogActor")
+  smsMessages         SmsMessage[]
+  wishlistItems       WishlistItem[]
+  points              UserPoints?
+  pointsAwards        PointsAward[]
+  questionsAsked      Question[]            @relation("QuestionsAsked")
+  answersGiven        Answer[]              @relation("AnswersGiven")
 
   @@map("users")
 }
@@ -285,6 +315,7 @@ model Course {
   bundleCourses BundleCourse[]
   invoices      Invoice[]
   coupons       Coupon[]
+  wishlistItems WishlistItem[]
 
   @@map("courses")
 }
@@ -324,6 +355,7 @@ model Lesson {
   progress    LessonProgress[]
   assignment  Assignment?
   quizQuestions QuizQuestion[]
+  questions   Question[]
 
   @@map("lessons")
 }
@@ -403,6 +435,23 @@ model Enrollment {
 
   @@unique([studentId, courseId])
   @@map("enrollments")
+}
+
+model WishlistItem {
+  id             String    @id @default(uuid())
+  studentId      String
+  courseId       String
+  lastReminderAt DateTime?
+  reminderCount  Int       @default(0)
+  createdAt      DateTime  @default(now())
+
+  // Relations
+  student User   @relation(fields: [studentId], references: [id])
+  course  Course @relation(fields: [courseId], references: [id])
+
+  @@unique([studentId, courseId])
+  @@index([studentId])
+  @@map("wishlist_items")
 }
 
 model LessonProgress {
@@ -522,6 +571,29 @@ model NotificationDigestPreference {
   user User @relation(fields: [userId], references: [id])
 
   @@map("notification_digest_preferences")
+}
+
+model SmsMessage {
+  id                String          @id @default(uuid())
+  userId            String?
+  phoneNumber       String          // normalized E.164
+  countryCode       String
+  templateKey       SmsTemplateKey?
+  message           String
+  status            SmsStatus       @default(PENDING)
+  providerMessageId String?         @unique
+  failureReason     String?
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@map("sms_messages")
 }
 
 model Exam {
@@ -760,6 +832,73 @@ model CourseReview {
   @@unique([courseId, studentId])
   @@index([courseId])
   @@map("course_reviews")
+}
+
+model UserPoints {
+  id               String    @id @default(uuid())
+  userId           String    @unique
+  totalPoints      Int       @default(0)
+  currentStreak    Int       @default(0)
+  longestStreak    Int       @default(0)
+  lastActivityDate DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("user_points")
+}
+
+model PointsAward {
+  id           String             @id @default(uuid())
+  userId       String
+  activityType PointsActivityType
+  points       Int
+  awardedDate  DateTime           // midnight-normalized date the award applies to
+  createdAt    DateTime           @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, activityType, awardedDate])
+  @@index([userId])
+  @@map("points_awards")
+}
+
+model Question {
+  id        String   @id @default(uuid())
+  lessonId  String
+  authorId  String
+  title     String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  lesson  Lesson   @relation(fields: [lessonId], references: [id])
+  author  User     @relation("QuestionsAsked", fields: [authorId], references: [id])
+  answers Answer[]
+
+  @@index([lessonId])
+  @@map("questions")
+}
+
+model Answer {
+  id           String   @id @default(uuid())
+  questionId   String
+  authorId     String
+  content      String
+  isBestAnswer Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  question Question @relation(fields: [questionId], references: [id])
+  author   User     @relation("AnswersGiven", fields: [authorId], references: [id])
+
+  @@index([questionId])
+  @@map("answers")
 }
 
 model DiscussionComment {
