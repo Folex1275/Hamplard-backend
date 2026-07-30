@@ -30,6 +30,7 @@ import { GamificationModule } from './modules/gamification/gamification.module';
 import { ReferralsModule }    from './modules/referrals/referrals.module';
 import { AuditLogModule }     from './modules/audit-log/audit-log.module';
 import { BackupsModule }      from './modules/backups/backups.module';
+import { UploadsModule }      from './modules/uploads/uploads.module';
 
 @Module({
   imports: [
@@ -74,6 +75,7 @@ import { BackupsModule }      from './modules/backups/backups.module';
     ReferralsModule,
     AuditLogModule,
     BackupsModule,
+    UploadsModule,
   ],
 })
 export class AppModule {}
