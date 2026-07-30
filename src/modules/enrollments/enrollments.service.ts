@@ -132,4 +132,92 @@ export class EnrollmentsService {
     });
     return count > 0;
   }
+
+  /**
+   * Create or update an enrollment from a backup restore payload.
+   * Used by EnrollmentRestoreService — does not send notifications/invoices.
+   */
+  async upsertFromBackup(data: {
+    id?: string;
+    studentId: string;
+    courseId: string;
+    amountPaid: number;
+    txHash?: string | null;
+    status?: string;
+    progressPercent?: number;
+    completedAt?: Date | null;
+    enrolledAt?: Date;
+    mode: 'create' | 'overwrite' | 'merge';
+  }) {
+    const existing = await this.prisma.enrollment.findUnique({
+      where: {
+        studentId_courseId: {
+          studentId: data.studentId,
+          courseId: data.courseId,
+        },
+      },
+    });
+
+    if (!existing) {
+      const created = await this.prisma.enrollment.create({
+        data: {
+          ...(data.id ? { id: data.id } : {}),
+          studentId: data.studentId,
+          courseId: data.courseId,
+          amountPaid: data.amountPaid,
+          txHash: data.txHash ?? null,
+          status: (data.status as any) ?? 'ACTIVE',
+          progressPercent: data.progressPercent ?? 0,
+          completedAt: data.completedAt ?? null,
+          ...(data.enrolledAt ? { enrolledAt: data.enrolledAt } : {}),
+        },
+      });
+      this.logger.log(
+        `Restored enrollment created: ${created.studentId} → ${created.courseId}`,
+      );
+      return { enrollment: created, action: 'created' as const };
+    }
+
+    if (data.mode === 'create') {
+      return { enrollment: existing, action: 'skipped' as const };
+    }
+
+    if (data.mode === 'overwrite') {
+      const enrollment = await this.prisma.enrollment.update({
+        where: { id: existing.id },
+        data: {
+          amountPaid: data.amountPaid,
+          txHash: data.txHash ?? null,
+          status: (data.status as any) ?? existing.status,
+          progressPercent: data.progressPercent ?? 0,
+          completedAt: data.completedAt ?? null,
+          ...(data.enrolledAt ? { enrolledAt: data.enrolledAt } : {}),
+        },
+      });
+      return { enrollment, action: 'overwritten' as const };
+    }
+
+    // merge
+    const incomingProgress = data.progressPercent ?? 0;
+    const preferIncoming = incomingProgress >= existing.progressPercent;
+    const enrollment = await this.prisma.enrollment.update({
+      where: { id: existing.id },
+      data: {
+        amountPaid: preferIncoming ? data.amountPaid : existing.amountPaid,
+        txHash: data.txHash ?? existing.txHash,
+        status: preferIncoming
+          ? ((data.status as any) ?? existing.status)
+          : existing.status,
+        progressPercent: Math.max(existing.progressPercent, incomingProgress),
+        completedAt: preferIncoming
+          ? (data.completedAt ?? existing.completedAt)
+          : existing.completedAt,
+        enrolledAt:
+          data.enrolledAt && data.enrolledAt < existing.enrolledAt
+            ? data.enrolledAt
+            : existing.enrolledAt,
+      },
+    });
+    return { enrollment, action: 'merged' as const };
+  }
 }
