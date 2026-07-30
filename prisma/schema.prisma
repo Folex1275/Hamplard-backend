@@ -211,6 +211,13 @@ model User {
   avatarUrl      String?
   role           UserRole  @default(STUDENT)
   isVerified     Boolean   @default(false)
+  isBanned       Boolean   @default(false)
+  bannedAt       DateTime?
+  banReason      String?
+  isSuspended    Boolean   @default(false)
+  suspendedAt    DateTime?
+  suspendedUntil DateTime?
+  suspensionReason String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -941,6 +948,9 @@ model ReferralReward {
   @@index([beneficiaryId, status])
   @@index([referralId])
   @@map("referral_rewards")
+}
+
+// ============================================================
 // ADMIN AUDIT LOG
 // ============================================================
 
@@ -948,6 +958,8 @@ enum AuditAction {
   // User management
   USER_BANNED
   USER_UNBANNED
+  USER_SUSPENDED
+  USER_UNSUSPENDED
   USER_ROLE_CHANGED
 
   // Course lifecycle
