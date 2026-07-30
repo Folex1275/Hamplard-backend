@@ -122,6 +122,20 @@ enum ReportStatus {
   DISMISSED      // reviewed, no action needed
 }
 
+enum FraudRiskLevel {
+  LOW       // score 0-39   — no action
+  MEDIUM    // score 40-69  — no action (internal logging only)
+  HIGH      // score 70-89  — enrollment flagged, proceeds normally
+  CRITICAL  // score 90-100 — enrollment blocked (automatic hold)
+}
+
+enum FraudFlagStatus {
+  OPEN      // flagged, awaiting admin review
+  HELD      // enrollment blocked by automatic hold
+  CLEARED   // admin reviewed — no fraud found
+  CONFIRMED // admin confirmed fraud — enrollment voided
+}
+
 // ============================================================
 // MODELS
 // ============================================================
@@ -139,17 +153,19 @@ model User {
   updatedAt      DateTime  @updatedAt
 
   // Relations
-  coursesCreated Course[]               @relation("InstructorCourses")
-  enrollments    Enrollment[]
-  assignments    AssignmentSubmission[]
-  notifications  Notification[]
-  certificates   Certificate[]
-  examAttempts   ExamAttempt[]
-  payouts        Payout[]
-  reportsFiled   AbuseReport[] @relation("ReportsFiled")
-  reportsHandled AbuseReport[] @relation("ReportsHandled")
-  reviews        CourseReview[]
+  coursesCreated  Course[]               @relation("InstructorCourses")
+  enrollments     Enrollment[]
+  assignments     AssignmentSubmission[]
+  notifications   Notification[]
+  certificates    Certificate[]
+  examAttempts    ExamAttempt[]
+  payouts         Payout[]
+  reportsFiled    AbuseReport[]          @relation("ReportsFiled")
+  reportsHandled  AbuseReport[]          @relation("ReportsHandled")
+  reviews         CourseReview[]
   discussionComments DiscussionComment[]
+  fraudFlags      EnrollmentFraudFlag[]  @relation("StudentFraudFlags")
+  fraudReviewed   EnrollmentFraudFlag[]  @relation("FraudReviewedBy")
 
   @@map("users")
 }
@@ -297,11 +313,12 @@ model Enrollment {
   updatedAt       DateTime         @updatedAt
 
   // Relations
-  student       User            @relation(fields: [studentId], references: [id])
-  course        Course          @relation(fields: [courseId], references: [id])
+  student        User                 @relation(fields: [studentId], references: [id])
+  course         Course               @relation(fields: [courseId], references: [id])
   lessonProgress LessonProgress[]
-  refunds       Refund[]
-  invoice       Invoice?
+  refunds        Refund[]
+  invoice        Invoice?
+  fraudFlag      EnrollmentFraudFlag?
 
   @@unique([studentId, courseId])
   @@map("enrollments")
@@ -453,6 +470,8 @@ model Payout {
   @@index([instructorId])
   @@index([status])
   @@map("payouts")
+}
+
 model AbuseReport {
   id             String           @id @default(uuid())
   reporterId     String
@@ -494,6 +513,8 @@ model CourseReview {
   @@unique([courseId, studentId])
   @@index([courseId])
   @@map("course_reviews")
+}
+
 model DiscussionComment {
   id              String               @id @default(uuid())
   discussionId    String
@@ -512,4 +533,29 @@ model DiscussionComment {
   @@index([discussionId])
   @@index([authorId])
   @@map("discussion_comments")
+}
+
+model EnrollmentFraudFlag {
+  id           String          @id @default(uuid())
+  enrollmentId String          @unique
+  studentId    String
+  riskScore    Int             // computed 0–100
+  riskLevel    FraudRiskLevel
+  reasons      Json            // string[] of triggered rule names
+  status       FraudFlagStatus @default(OPEN)
+  reviewedById String?
+  reviewNotes  String?
+  reviewedAt   DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  // Relations
+  enrollment Enrollment  @relation(fields: [enrollmentId], references: [id])
+  student    User        @relation("StudentFraudFlags", fields: [studentId], references: [id])
+  reviewedBy User?       @relation("FraudReviewedBy", fields: [reviewedById], references: [id])
+
+  @@index([studentId])
+  @@index([status])
+  @@index([riskLevel])
+  @@map("enrollment_fraud_flags")
 }
