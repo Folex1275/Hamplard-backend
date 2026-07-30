@@ -5,6 +5,7 @@ import {
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { InvoicesService } from '../invoices/invoices.service';
+import { ReferralsService } from '../referrals/referrals.service';
 import { NotificationType } from '@prisma/client';
 
 @Injectable()
@@ -15,6 +16,7 @@ export class EnrollmentsService {
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
     private readonly invoices: InvoicesService,
+    private readonly referrals: ReferralsService,
   ) {}
 
   /**
@@ -74,6 +76,13 @@ export class EnrollmentsService {
       await this.invoices.generateForEnrollment(enrollment.id);
     } catch (error) {
       this.logger.error(`Invoice generation failed for enrollment ${enrollment.id}`, error.message);
+    }
+
+    // Track referral conversion + issue referrer reward (idempotent if not referred)
+    try {
+      await this.referrals.trackConversion(studentId, enrollment.id);
+    } catch (error) {
+      this.logger.warn(`Referral conversion tracking failed for ${studentId}: ${error.message}`);
     }
 
     this.logger.log(`Enrollment created: ${studentId} → ${courseId}`);

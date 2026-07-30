@@ -85,6 +85,7 @@ enum NotificationType {
   REFUND_APPROVED
   REFUND_REJECTED
   REFUND_PROCESSED
+  REFERRAL_REWARD_ISSUED
 }
 
 enum RefundStatus {
@@ -179,6 +180,24 @@ enum ReportStatus {
   DISMISSED      // reviewed, no action needed
 }
 
+enum ReferralStatus {
+  SIGNED_UP      // referred user registered with a valid code
+  CONVERTED      // referred user completed first enrollment
+}
+
+enum ReferralRewardStatus {
+  PENDING        // awaiting conversion before issuance
+  ISSUED         // discount available for use
+  REDEEMED       // applied to an enrollment
+  EXPIRED
+  CANCELLED
+}
+
+enum ReferralRewardKind {
+  REFERRER       // reward for the student who shared the code
+  REFEREE        // welcome discount for the new user
+}
+
 // ============================================================
 // MODELS
 // ============================================================
@@ -218,6 +237,10 @@ model User {
   kycSubmissions      KycSubmission[]       @relation("KycSubmissions")
   kycReviews          KycSubmission[]       @relation("KycReviews")
   payoutSchedule      PayoutSchedule?       @relation("PayoutSchedule")
+  referralCode        ReferralCode?
+  referralsMade       Referral[]            @relation("ReferralsMade")
+  referralReceived    Referral?             @relation("ReferredBy")
+  referralRewards     ReferralReward[]      @relation("ReferralRewards")
   deviceTokens        NotificationDeviceToken[]
   notificationPreferences NotificationPreference[]
   digestPreference    NotificationDigestPreference?
@@ -853,6 +876,71 @@ model Invoice {
 }
 
 // ============================================================
+// REFERRALS
+// ============================================================
+
+model ReferralCode {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  code             String   @unique
+  isActive         Boolean  @default(true)
+  totalSignups     Int      @default(0)
+  totalConversions Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  user      User       @relation(fields: [userId], references: [id])
+  referrals Referral[]
+
+  @@map("referral_codes")
+}
+
+model Referral {
+  id             String         @id @default(uuid())
+  referralCodeId String
+  referrerId     String
+  referredUserId String         @unique
+  status         ReferralStatus @default(SIGNED_UP)
+  signedUpAt     DateTime       @default(now())
+  convertedAt    DateTime?
+  enrollmentId   String?        @unique
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  // Relations
+  referralCode ReferralCode     @relation(fields: [referralCodeId], references: [id])
+  referrer     User             @relation("ReferralsMade", fields: [referrerId], references: [id])
+  referredUser User             @relation("ReferredBy", fields: [referredUserId], references: [id])
+  rewards      ReferralReward[]
+
+  @@index([referrerId])
+  @@index([status])
+  @@map("referrals")
+}
+
+model ReferralReward {
+  id            String               @id @default(uuid())
+  referralId    String
+  beneficiaryId String
+  kind          ReferralRewardKind
+  discountType  DiscountType         @default(PERCENTAGE)
+  discountValue Decimal
+  status        ReferralRewardStatus @default(PENDING)
+  enrollmentId  String?
+  issuedAt      DateTime?
+  redeemedAt    DateTime?
+  expiresAt     DateTime?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  // Relations
+  referral    Referral @relation(fields: [referralId], references: [id])
+  beneficiary User     @relation("ReferralRewards", fields: [beneficiaryId], references: [id])
+
+  @@index([beneficiaryId, status])
+  @@index([referralId])
+  @@map("referral_rewards")
 // ADMIN AUDIT LOG
 // ============================================================
 

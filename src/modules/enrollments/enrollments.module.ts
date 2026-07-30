@@ -6,9 +6,10 @@ import { RefundsController } from './refunds.controller';
 import { RefundsService } from './refunds.service';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { InvoicesModule } from '../invoices/invoices.module';
+import { ReferralsModule } from '../referrals/referrals.module';
 
 @Module({
-  imports: [NotificationsModule, InvoicesModule],
+  imports: [NotificationsModule, InvoicesModule, ReferralsModule],
   controllers: [EnrollmentsController, RefundsController],
   providers: [EnrollmentsService, RefundsService],
   exports: [EnrollmentsService, RefundsService],
