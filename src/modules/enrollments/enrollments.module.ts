@@ -12,13 +12,9 @@ import { InvoicesModule } from '../invoices/invoices.module';
 import { ReferralsModule } from '../referrals/referrals.module';
 
 @Module({
-  imports: [ConfigModule, NotificationsModule, InvoicesModule],
+  imports: [ConfigModule, NotificationsModule, InvoicesModule, ReferralsModule],
   controllers: [EnrollmentsController, RefundsController, FraudController],
   providers: [EnrollmentsService, RefundsService, FraudDetectionService],
   exports: [EnrollmentsService, RefundsService, FraudDetectionService],
-  imports: [NotificationsModule, InvoicesModule, ReferralsModule],
-  controllers: [EnrollmentsController, RefundsController],
-  providers: [EnrollmentsService, RefundsService],
-  exports: [EnrollmentsService, RefundsService],
 })
 export class EnrollmentsModule {}

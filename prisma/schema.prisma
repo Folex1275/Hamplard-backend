@@ -193,6 +193,8 @@ enum FraudFlagStatus {
   HELD      // enrollment blocked by automatic hold
   CLEARED   // admin reviewed — no fraud found
   CONFIRMED // admin confirmed fraud — enrollment voided
+}
+
 enum ReferralStatus {
   SIGNED_UP      // referred user registered with a valid code
   CONVERTED      // referred user completed first enrollment
@@ -258,19 +260,6 @@ model User {
   updatedAt      DateTime  @updatedAt
 
   // Relations
-  coursesCreated  Course[]               @relation("InstructorCourses")
-  enrollments     Enrollment[]
-  assignments     AssignmentSubmission[]
-  notifications   Notification[]
-  certificates    Certificate[]
-  examAttempts    ExamAttempt[]
-  payouts         Payout[]
-  reportsFiled    AbuseReport[]          @relation("ReportsFiled")
-  reportsHandled  AbuseReport[]          @relation("ReportsHandled")
-  reviews         CourseReview[]
-  discussionComments DiscussionComment[]
-  fraudFlags      EnrollmentFraudFlag[]  @relation("StudentFraudFlags")
-  fraudReviewed   EnrollmentFraudFlag[]  @relation("FraudReviewedBy")
   coursesCreated      Course[]              @relation("InstructorCourses")
   enrollments         Enrollment[]
   assignments         AssignmentSubmission[]
@@ -282,6 +271,8 @@ model User {
   reportsHandled      AbuseReport[]         @relation("ReportsHandled")
   reviews             CourseReview[]
   discussionComments  DiscussionComment[]
+  fraudFlags          EnrollmentFraudFlag[] @relation("StudentFraudFlags")
+  fraudReviewed       EnrollmentFraudFlag[] @relation("FraudReviewedBy")
   refundRequests      Refund[]
   bundlesCreated      Bundle[]              @relation("InstructorBundles")
   bundleEnrollments   BundleEnrollment[]
@@ -992,6 +983,8 @@ model EnrollmentFraudFlag {
   @@index([status])
   @@index([riskLevel])
   @@map("enrollment_fraud_flags")
+}
+
 model Refund {
   id              String       @id @default(uuid())
   enrollmentId    String
