@@ -3,6 +3,7 @@ import { CertificatesService } from './certificates.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { StellarService } from '../../common/stellar/stellar.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ExamsService } from '../exams/exams.service';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 
 const mockPrisma = {
@@ -29,6 +30,10 @@ const mockNotifications = {
   notifyUser: jest.fn().mockResolvedValue({}),
 };
 
+const mockExams = {
+  hasPassedExam: jest.fn().mockResolvedValue(true),
+};
+
 const MOCK_ENROLLMENT = {
   id:             'enroll-1',
   studentId:      'student-1',
@@ -50,6 +55,7 @@ describe('CertificatesService', () => {
         { provide: PrismaService,        useValue: mockPrisma },
         { provide: StellarService,       useValue: mockStellar },
         { provide: NotificationsService, useValue: mockNotifications },
+        { provide: ExamsService,         useValue: mockExams },
       ],
     }).compile();
 

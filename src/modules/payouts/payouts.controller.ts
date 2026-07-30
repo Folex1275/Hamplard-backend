@@ -12,7 +12,7 @@ import {
 import { PayoutsService } from './payouts.service';
 import { PayoutQueryDto } from './dto/payout-query.dto';
 import { CreatePayoutDto, UpdatePayoutStatusDto } from './dto/create-payout.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 
 @Controller('payouts')
 export class PayoutsController {
