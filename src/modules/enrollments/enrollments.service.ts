@@ -1,12 +1,13 @@
 // enrollments.service.ts
 import {
-  Injectable, NotFoundException, ConflictException, Logger,
+  Injectable, NotFoundException, ConflictException, Logger, HttpException,
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { InvoicesService } from '../invoices/invoices.service';
 import { ReferralsService } from '../referrals/referrals.service';
 import { NotificationType } from '@prisma/client';
+import { FraudDetectionService } from './fraud-detection.service';
 
 @Injectable()
 export class EnrollmentsService {
@@ -16,6 +17,7 @@ export class EnrollmentsService {
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
     private readonly invoices: InvoicesService,
+    private readonly fraudDetection: FraudDetectionService,
     private readonly referrals: ReferralsService,
   ) {}
 
@@ -30,6 +32,42 @@ export class EnrollmentsService {
     });
     if (existing) throw new ConflictException('Already enrolled in this course');
 
+    // ------------------------------------------------------------------
+    // PRE-CHECK: Run fraud scoring before writing the enrollment to DB.
+    // If the score is CRITICAL the enrollment is blocked entirely (HOLD).
+    // We pass null for enrollmentId here because the row doesn't exist yet;
+    // the flag for HOLD actions is persisted in the post-check below once
+    // a sentinel record is available, or omitted if the call is rejected.
+    // ------------------------------------------------------------------
+    const preCheck = await this.fraudDetection.scoreEnrollment(
+      studentId,
+      courseId,
+      amountPaid,
+    );
+
+    if (preCheck.action === 'HOLD') {
+      this.logger.warn(
+        `Enrollment BLOCKED by fraud detection: student=${studentId} ` +
+        `course=${courseId} score=${preCheck.score} reasons=${preCheck.reasons.join(', ')}`,
+      );
+      // HTTP 423 Locked — enrollment is on automatic hold
+      throw new HttpException(
+        {
+          statusCode: 423,
+          error: 'Enrollment Locked',
+          message:
+            'Your enrollment has been flagged and placed on hold pending a fraud review. ' +
+            'Please contact support if you believe this is an error.',
+          riskScore: preCheck.score,
+          reasons:   preCheck.reasons,
+        },
+        423,
+      );
+    }
+
+    // ------------------------------------------------------------------
+    // Create enrollment record
+    // ------------------------------------------------------------------
     const enrollment = await this.prisma.enrollment.create({
       data: {
         studentId,
@@ -39,6 +77,20 @@ export class EnrollmentsService {
       },
       include: { course: true, student: true },
     });
+
+    // ------------------------------------------------------------------
+    // POST-CHECK: Persist fraud flag if score is HIGH (FLAG action).
+    // Runs fire-and-forget — a flag failure must not break the enrollment.
+    // ------------------------------------------------------------------
+    if (preCheck.action === 'FLAG') {
+      this.fraudDetection
+        .processFraudCheck(enrollment.id, studentId, courseId, amountPaid)
+        .catch((err: Error) =>
+          this.logger.error(
+            `Fraud flag persistence failed for enrollment ${enrollment.id}: ${err.message}`,
+          ),
+        );
+    }
 
     // Update course stats
     await this.prisma.course.update({
