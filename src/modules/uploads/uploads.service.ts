@@ -6,6 +6,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import { v4 as uuid } from 'uuid';
 import { CdnAssetVisibility, CdnService, MediaDeliveryUrls } from './cdn.service';
+import { VirusScanService } from './virus-scan.service';
 
 /** Allowed MIME types for KYC identity documents */
 const ALLOWED_MIME_TYPES = [
@@ -30,6 +31,7 @@ export class UploadsService {
   constructor(
     private readonly config: ConfigService,
     private readonly cdn: CdnService,
+    private readonly virusScan: VirusScanService,
   ) {
     this.uploadDir = this.config.get<string>('UPLOAD_DIR', './uploads');
     this.ensureDir(this.uploadDir);
@@ -52,6 +54,9 @@ export class UploadsService {
 
     const ext = path.extname(file.originalname).toLowerCase();
     const filename = `kyc-${instructorId}-${uuid()}${ext}`;
+
+    await this.virusScan.scanFile(filename, file.buffer);
+
     const filePath = path.join(this.uploadDir, 'kyc', filename);
 
     fs.writeFileSync(filePath, file.buffer);
@@ -74,6 +79,9 @@ export class UploadsService {
 
     const ext = path.extname(file.originalname).toLowerCase();
     const filename = `${uuid()}${ext}`;
+
+    await this.virusScan.scanFile(filename, file.buffer);
+
     const filePath = path.join(this.uploadDir, subfolder, filename);
 
     fs.writeFileSync(filePath, file.buffer);
