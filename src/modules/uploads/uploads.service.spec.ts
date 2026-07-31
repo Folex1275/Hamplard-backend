@@ -4,6 +4,17 @@ import { Test, TestingModule } from '@nestjs/testing';
 import * as fs from 'fs';
 import { CdnService } from './cdn.service';
 import { UploadsService } from './uploads.service';
+import { VirusScanService } from './virus-scan.service';
+
+jest.mock('clamscan', () => {
+  return jest.fn().mockImplementation(() => {
+    return {
+      init: jest.fn().mockResolvedValue({
+        scanBuffer: jest.fn(),
+      }),
+    };
+  });
+});
 
 jest.mock('fs');
 
@@ -20,6 +31,13 @@ describe('UploadsService (CDN integration)', () => {
       providers: [
         UploadsService,
         CdnService,
+        {
+          provide: VirusScanService,
+          useValue: {
+            scanFile: jest.fn().mockResolvedValue(undefined),
+            getScanStatus: jest.fn(),
+          },
+        },
         {
           provide: ConfigService,
           useValue: {

@@ -292,6 +292,7 @@ model User {
   notificationPreferences NotificationPreference[]
   digestPreference    NotificationDigestPreference?
   auditLogs           AdminAuditLog[]       @relation("AuditLogActor")
+  courseRestoreJobs   CourseRestoreJob[]    @relation("CourseRestoreRequester")
   smsMessages         SmsMessage[]
   wishlistItems       WishlistItem[]
   points              UserPoints?
@@ -1249,4 +1250,39 @@ model AnalyticsEvent {
   @@index([occurredAt])
   @@index([eventType, occurredAt])
   @@map("analytics_events")
+// COURSE DATA RESTORE
+// ============================================================
+
+enum CourseRestoreStatus {
+  PENDING
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model CourseRestoreJob {
+  id              String              @id @default(uuid())
+  requestedBy     String
+  status          CourseRestoreStatus @default(PENDING)
+  progressPercent Int                 @default(0)
+  totalSteps      Int                 @default(0)
+  completedSteps  Int                 @default(0)
+  scheduledFor    DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  backupPayload   Json
+  validationErrors Json?
+  summary         Json?
+  errorMessage    String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  requester User @relation("CourseRestoreRequester", fields: [requestedBy], references: [id])
+
+  @@index([status])
+  @@index([scheduledFor])
+  @@index([requestedBy])
+  @@map("course_restore_jobs")
 }
