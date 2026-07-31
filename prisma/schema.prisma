@@ -193,6 +193,8 @@ enum FraudFlagStatus {
   HELD      // enrollment blocked by automatic hold
   CLEARED   // admin reviewed — no fraud found
   CONFIRMED // admin confirmed fraud — enrollment voided
+}
+
 enum ReferralStatus {
   SIGNED_UP      // referred user registered with a valid code
   CONVERTED      // referred user completed first enrollment
@@ -258,19 +260,6 @@ model User {
   updatedAt      DateTime  @updatedAt
 
   // Relations
-  coursesCreated  Course[]               @relation("InstructorCourses")
-  enrollments     Enrollment[]
-  assignments     AssignmentSubmission[]
-  notifications   Notification[]
-  certificates    Certificate[]
-  examAttempts    ExamAttempt[]
-  payouts         Payout[]
-  reportsFiled    AbuseReport[]          @relation("ReportsFiled")
-  reportsHandled  AbuseReport[]          @relation("ReportsHandled")
-  reviews         CourseReview[]
-  discussionComments DiscussionComment[]
-  fraudFlags      EnrollmentFraudFlag[]  @relation("StudentFraudFlags")
-  fraudReviewed   EnrollmentFraudFlag[]  @relation("FraudReviewedBy")
   coursesCreated      Course[]              @relation("InstructorCourses")
   enrollments         Enrollment[]
   assignments         AssignmentSubmission[]
@@ -282,6 +271,8 @@ model User {
   reportsHandled      AbuseReport[]         @relation("ReportsHandled")
   reviews             CourseReview[]
   discussionComments  DiscussionComment[]
+  fraudFlags          EnrollmentFraudFlag[] @relation("StudentFraudFlags")
+  fraudReviewed       EnrollmentFraudFlag[] @relation("FraudReviewedBy")
   refundRequests      Refund[]
   bundlesCreated      Bundle[]              @relation("InstructorBundles")
   bundleEnrollments   BundleEnrollment[]
@@ -301,6 +292,7 @@ model User {
   notificationPreferences NotificationPreference[]
   digestPreference    NotificationDigestPreference?
   auditLogs           AdminAuditLog[]       @relation("AuditLogActor")
+  courseRestoreJobs   CourseRestoreJob[]    @relation("CourseRestoreRequester")
   smsMessages         SmsMessage[]
   wishlistItems       WishlistItem[]
   points              UserPoints?
@@ -991,6 +983,8 @@ model EnrollmentFraudFlag {
   @@index([status])
   @@index([riskLevel])
   @@map("enrollment_fraud_flags")
+}
+
 model Refund {
   id              String       @id @default(uuid())
   enrollmentId    String
@@ -1233,4 +1227,42 @@ model AdminAuditLog {
   @@index([targetType, targetId])
   @@index([createdAt])
   @@map("admin_audit_logs")
+}
+
+// ============================================================
+// COURSE DATA RESTORE
+// ============================================================
+
+enum CourseRestoreStatus {
+  PENDING
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model CourseRestoreJob {
+  id              String              @id @default(uuid())
+  requestedBy     String
+  status          CourseRestoreStatus @default(PENDING)
+  progressPercent Int                 @default(0)
+  totalSteps      Int                 @default(0)
+  completedSteps  Int                 @default(0)
+  scheduledFor    DateTime?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  backupPayload   Json
+  validationErrors Json?
+  summary         Json?
+  errorMessage    String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  requester User @relation("CourseRestoreRequester", fields: [requestedBy], references: [id])
+
+  @@index([status])
+  @@index([scheduledFor])
+  @@index([requestedBy])
+  @@map("course_restore_jobs")
 }
