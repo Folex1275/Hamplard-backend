@@ -1230,6 +1230,26 @@ model AdminAuditLog {
 }
 
 // ============================================================
+// ANALYTICS EVENTS
+// ============================================================
+
+model AnalyticsEvent {
+  id         String   @id @default(uuid())
+  eventType  String
+  userId     String?
+  sessionId  String?
+  path       String?
+  properties Json?
+  userAgent  String?
+  ipAddress  String?
+  occurredAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@index([eventType])
+  @@index([userId])
+  @@index([occurredAt])
+  @@index([eventType, occurredAt])
+  @@map("analytics_events")
 // COURSE DATA RESTORE
 // ============================================================
 

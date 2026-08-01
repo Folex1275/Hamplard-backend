@@ -29,6 +29,7 @@ import { ModerationModule }   from './modules/moderation/moderation.module';
 import { GamificationModule } from './modules/gamification/gamification.module';
 import { ReferralsModule }    from './modules/referrals/referrals.module';
 import { AuditLogModule }     from './modules/audit-log/audit-log.module';
+import { AnalyticsModule }    from './modules/analytics/analytics.module';
 import { BackupsModule }      from './modules/backups/backups.module';
 import { UploadsModule }      from './modules/uploads/uploads.module';
 
@@ -74,6 +75,7 @@ import { UploadsModule }      from './modules/uploads/uploads.module';
     GamificationModule,
     ReferralsModule,
     AuditLogModule,
+    AnalyticsModule,
     BackupsModule,
     UploadsModule,
   ],
