@@ -340,6 +340,7 @@ model Course {
   invoices      Invoice[]
   coupons       Coupon[]
   wishlistItems WishlistItem[]
+  tags          CourseTag[]
 
   @@map("courses")
 }
@@ -1147,6 +1148,41 @@ model ReferralReward {
 }
 
 // ============================================================
+// TAGS
+// ============================================================
+
+model Tag {
+  id         String   @id @default(uuid())
+  name       String   @unique  // normalized lowercase slug, e.g. "web-design"
+  label      String            // display label, e.g. "Web Design"
+  usageCount Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  courses CourseTag[]
+
+  @@index([usageCount])
+  @@index([name])
+  @@map("tags")
+}
+
+model CourseTag {
+  id       String @id @default(uuid())
+  courseId String
+  tagId    String
+
+  // Relations
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, tagId])
+  @@index([courseId])
+  @@index([tagId])
+  @@map("course_tags")
+}
+
+// ============================================================
 // ADMIN AUDIT LOG
 // ============================================================
 
@@ -1194,6 +1230,12 @@ enum AuditAction {
   IMPERSONATION_STARTED
   IMPERSONATION_ENDED
 
+  // Tags
+  TAG_CREATED
+  TAG_UPDATED
+  TAG_DELETED
+  TAG_MERGED
+
   // Generic admin note
   ADMIN_MANUAL_NOTE
 }
@@ -1207,6 +1249,7 @@ enum AuditTargetType {
   PAYOUT
   COUPON
   ABUSE_REPORT
+  TAG
 }
 
 model AdminAuditLog {
