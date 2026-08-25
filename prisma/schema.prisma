@@ -299,6 +299,7 @@ model User {
   pointsAwards        PointsAward[]
   questionsAsked      Question[]            @relation("QuestionsAsked")
   answersGiven        Answer[]              @relation("AnswersGiven")
+  courseDrafts        CourseDraft[]         @relation("InstructorCourseDrafts")
 
   @@map("users")
 }
@@ -1286,3 +1287,28 @@ model CourseRestoreJob {
   @@index([requestedBy])
   @@map("course_restore_jobs")
 }
+
+// ============================================================
+// COURSE AUTOSAVE DRAFTS
+// ============================================================
+
+model CourseDraft {
+  id                String   @id @default(uuid())
+  courseId          String?
+  instructorId      String
+  instructorAddress String
+  title             String?
+  data              Json
+  version           Int      @default(1)
+  lastSavedAt       DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  instructor User @relation("InstructorCourseDrafts", fields: [instructorId], references: [id], onDelete: Cascade)
+
+  @@index([instructorId])
+  @@index([courseId])
+  @@index([lastSavedAt])
+  @@map("course_drafts")
+}
+
