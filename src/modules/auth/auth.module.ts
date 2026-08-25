@@ -6,6 +6,10 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
+import { GoogleAuthController } from './google-auth.controller';
+import { GoogleAuthService } from './google-auth.service';
+import { GoogleStrategy } from './google.strategy';
+import { GoogleAuthGuard } from './google-auth.guard';
 import { ReferralsModule } from '../referrals/referrals.module';
 
 @Module({
@@ -21,8 +25,8 @@ import { ReferralsModule } from '../referrals/referrals.module';
     }),
     ReferralsModule,
   ],
-  controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
+  controllers: [AuthController, GoogleAuthController],
+  providers: [AuthService, JwtStrategy, GoogleAuthService, GoogleStrategy, GoogleAuthGuard],
   exports: [AuthService],
 })
 export class AuthModule {}
