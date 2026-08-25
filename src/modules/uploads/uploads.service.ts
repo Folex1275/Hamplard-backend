@@ -8,6 +8,7 @@ import { v4 as uuid } from 'uuid';
 import { CdnAssetVisibility, CdnService, MediaDeliveryUrls } from './cdn.service';
 import { VirusScanService } from './virus-scan.service';
 import { VideoTranscodeService } from './video-transcode.service';
+import { VideoThumbnailService, ThumbnailResult } from './video-thumbnail.service';
 
 /** Allowed MIME types for KYC identity documents */
 const ALLOWED_MIME_TYPES = [
@@ -24,6 +25,12 @@ export interface UploadResult extends MediaDeliveryUrls {
   url: string;
 }
 
+export interface VideoUploadResult {
+  jobId: string;
+  originUrl: string;
+  thumbnail: ThumbnailResult;
+}
+
 @Injectable()
 export class UploadsService {
   private readonly logger = new Logger(UploadsService.name);
@@ -34,6 +41,7 @@ export class UploadsService {
     private readonly cdn: CdnService,
     private readonly virusScan: VirusScanService,
     private readonly videoTranscode: VideoTranscodeService,
+    private readonly videoThumbnail: VideoThumbnailService,
   ) {
     this.uploadDir = this.config.get<string>('UPLOAD_DIR', './uploads');
     this.ensureDir(this.uploadDir);
@@ -97,16 +105,23 @@ export class UploadsService {
   // VIDEO UPLOAD AND TRANSCODING
   // ----------------------------------------------------------
 
+  /**
+   * Saves a video file to disk, kicks off transcoding, and auto-generates
+   * a thumbnail frame from the video.
+   *
+   * @param file            Uploaded video file
+   * @param subfolder       Storage subfolder (e.g. 'lessons/videos')
+   * @param videoId         Lesson or video ID — used for job and thumbnail naming
+   * @param thumbnailAtSecs Frame timestamp for thumbnail extraction (default: 5 s)
+   */
   async saveVideo(
     file: Express.Multer.File,
     subfolder: string,
     videoId: string,
-  ): Promise<{ jobId: string, originUrl: string }> {
+    thumbnailAtSecs: number = 5,
+  ): Promise<VideoUploadResult> {
     if (!file) throw new BadRequestException('No file provided');
     this.videoTranscode.validateVideoFormat(file.mimetype);
-
-    // Increase max size for video if necessary, assuming default or skipping size check 
-    // for simplicity, or we can use a separate MAX_VIDEO_SIZE. We'll skip here for now.
 
     this.ensureDir(path.join(this.uploadDir, subfolder));
 
@@ -119,6 +134,7 @@ export class UploadsService {
     fs.writeFileSync(filePath, file.buffer);
     this.logger.log(`Video saved: ${filePath}`);
 
+    // Kick off background transcode job
     const jobId = await this.videoTranscode.addTranscodeJob({
       videoId,
       sourcePath: filePath,
@@ -126,8 +142,15 @@ export class UploadsService {
       subfolder,
     });
 
+    // Auto-generate thumbnail from the saved video file
+    const thumbnail = await this.videoThumbnail.extractThumbnail(
+      filePath,
+      videoId,
+      thumbnailAtSecs,
+    );
+
     const originUrl = `/uploads/${subfolder}/${filename}`;
-    return { jobId, originUrl };
+    return { jobId, originUrl, thumbnail };
   }
 
   /**

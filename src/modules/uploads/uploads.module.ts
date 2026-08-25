@@ -5,6 +5,7 @@ import { CdnService } from './cdn.service';
 import { CdnController } from './cdn.controller';
 import { VirusScanService } from './virus-scan.service';
 import { VideoTranscodeService, VideoTranscodeProcessor, TRANSCODE_QUEUE } from './video-transcode.service';
+import { VideoThumbnailService } from './video-thumbnail.service';
 
 @Module({
   imports: [
@@ -14,17 +15,19 @@ import { VideoTranscodeService, VideoTranscodeProcessor, TRANSCODE_QUEUE } from 
   ],
   controllers: [CdnController],
   providers: [
-    UploadsService, 
-    CdnService, 
+    UploadsService,
+    CdnService,
     VirusScanService,
     VideoTranscodeService,
     VideoTranscodeProcessor,
+    VideoThumbnailService,
   ],
   exports: [
-    UploadsService, 
-    CdnService, 
+    UploadsService,
+    CdnService,
     VirusScanService,
     VideoTranscodeService,
+    VideoThumbnailService,
   ],
 })
 export class UploadsModule {}
