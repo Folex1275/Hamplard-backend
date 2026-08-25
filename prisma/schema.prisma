@@ -242,7 +242,8 @@ enum PointsActivityType {
 
 model User {
   id             String    @id @default(uuid())
-  stellarAddress String    @unique
+  stellarAddress String?   @unique
+  googleId       String?   @unique
   email          String?   @unique
   name           String?
   bio            String?
@@ -1250,6 +1251,8 @@ model AnalyticsEvent {
   @@index([occurredAt])
   @@index([eventType, occurredAt])
   @@map("analytics_events")
+}
+
 // COURSE DATA RESTORE
 // ============================================================
 
