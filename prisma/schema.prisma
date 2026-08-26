@@ -301,6 +301,7 @@ model User {
   questionsAsked      Question[]            @relation("QuestionsAsked")
   answersGiven        Answer[]              @relation("AnswersGiven")
   courseDrafts        CourseDraft[]         @relation("InstructorCourseDrafts")
+  learningPathsCreated LearningPath[]       @relation("LearningPathCreator")
 
   @@map("users")
 }
@@ -343,6 +344,9 @@ model Course {
   coupons       Coupon[]
   wishlistItems WishlistItem[]
   tags          CourseTag[]
+  pathCourses   LearningPathCourse[]
+  prerequisites CoursePrerequisite[] @relation("CourseRequires") // this course requires them
+  unlocks       CoursePrerequisite[] @relation("CourseUnlocks")  // courses requiring this one
 
   @@map("courses")
 }
@@ -1357,5 +1361,72 @@ model CourseDraft {
   @@index([courseId])
   @@index([lastSavedAt])
   @@map("course_drafts")
+}
+
+// ============================================================
+// LEARNING PATHS
+// ============================================================
+
+enum LearningPathStatus {
+  DRAFT      // admin still curating courses and order
+  PUBLISHED  // visible to students for enrollment
+  ARCHIVED   // retired from student listings
+}
+
+model LearningPath {
+  id           String             @id @default(uuid())
+  title        String
+  slug         String             @unique // normalised, URL-safe identifier
+  description  String?
+  thumbnailUrl String?
+  status       LearningPathStatus @default(DRAFT)
+  createdById  String
+  publishedAt  DateTime?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  // Relations
+  createdBy User                 @relation("LearningPathCreator", fields: [createdById], references: [id])
+  courses   LearningPathCourse[]
+
+  @@index([status])
+  @@index([createdById])
+  @@map("learning_paths")
+}
+
+model LearningPathCourse {
+  id       String @id @default(uuid())
+  pathId   String
+  courseId String
+  position Int    // ordering within the path (0-based)
+
+  // Relations
+  path   LearningPath @relation(fields: [pathId], references: [id], onDelete: Cascade)
+  course Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([pathId, courseId])
+  @@unique([pathId, position])
+  @@index([pathId])
+  @@index([courseId])
+  @@map("learning_path_courses")
+}
+
+// ============================================================
+// COURSE PREREQUISITES
+// ============================================================
+
+model CoursePrerequisite {
+  id             String @id @default(uuid())
+  courseId       String // course that REQUIRES the prerequisite
+  prerequisiteId String // course that must be COMPLETED first
+
+  // Relations
+  course       Course @relation("CourseRequires", fields: [courseId], references: [id], onDelete: Cascade)
+  prerequisite Course @relation("CourseUnlocks", fields: [prerequisiteId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, prerequisiteId])
+  @@index([courseId])
+  @@index([prerequisiteId])
+  @@map("course_prerequisites")
 }
 
