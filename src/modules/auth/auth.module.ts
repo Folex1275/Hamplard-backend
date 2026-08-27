@@ -10,6 +10,8 @@ import { GoogleAuthController } from './google-auth.controller';
 import { GoogleAuthService } from './google-auth.service';
 import { GoogleStrategy } from './google.strategy';
 import { GoogleAuthGuard } from './google-auth.guard';
+import { OtpController } from './otp.controller';
+import { OtpService } from './otp.service';
 import { ReferralsModule } from '../referrals/referrals.module';
 
 @Module({
@@ -25,8 +27,8 @@ import { ReferralsModule } from '../referrals/referrals.module';
     }),
     ReferralsModule,
   ],
-  controllers: [AuthController, GoogleAuthController],
-  providers: [AuthService, JwtStrategy, GoogleAuthService, GoogleStrategy, GoogleAuthGuard],
-  exports: [AuthService],
+  controllers: [AuthController, GoogleAuthController, OtpController],
+  providers: [AuthService, JwtStrategy, GoogleAuthService, GoogleStrategy, GoogleAuthGuard, OtpService],
+  exports: [AuthService, OtpService],
 })
 export class AuthModule {}
