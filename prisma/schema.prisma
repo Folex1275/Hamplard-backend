@@ -532,6 +532,27 @@ model Certificate {
   @@map("certificates")
 }
 
+// Admin-configured certificate branding/layout per course category.
+// At most one template may be active for a given category (enforced in SQL
+// via a partial unique index and in the service on activation).
+model CertificateTemplate {
+  id          String   @id @default(uuid())
+  name        String
+  category    String   // matches Course.category, e.g. "Tailoring"
+  branding    Json     // logo, colors, organization name, footer
+  layout      Json     // orientation, title/body copy, field visibility
+  signatures  Json     // [{ name, label, title?, imageUrl? }]
+  isActive    Boolean  @default(false)
+  createdById String
+  activatedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+  @@index([category, isActive])
+  @@map("certificate_templates")
+}
+
 model ChainEvent {
   id         String   @id @default(uuid())
   courseId   String?

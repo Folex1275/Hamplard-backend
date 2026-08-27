@@ -55,6 +55,7 @@ async function bootstrap() {
     .addTag('bundles',      'Course bundles')
     .addTag('assignments',  'Practical assignment submission and review')
     .addTag('certificates', 'Certificate issuance and verification')
+    .addTag('certificate-templates', 'Admin certificate branding, layout, and signature templates')
     .addTag('events',       'On-chain Stellar event feed')
     .addTag('notifications','User notifications')
     .addTag('reports',      'Abuse reports on courses, comments, and profiles')
