@@ -9,6 +9,7 @@ import { PrismaModule }  from './common/prisma/prisma.module';
 import { StellarModule } from './common/stellar/stellar.module';
 import { CacheModule }   from './common/cache/cache.module';
 import { RateLimitMiddleware } from './common/middleware/rate-limit.middleware';
+import { WebhookSignatureMiddleware } from './common/middleware/webhook-signature.middleware';
 import { RoleThrottlerGuard } from './common/guards/role-throttler.guard';
 
 import { AuthModule }         from './modules/auth/auth.module';
@@ -97,5 +98,13 @@ export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     // Issue #71 — global per-IP rate limiting (runs before all guards)
     consumer.apply(RateLimitMiddleware).forRoutes('*');
+
+    // Webhook HMAC-SHA256 signature verification.
+    // Applied only to /webhooks/* routes so legitimate API traffic is unaffected.
+    // Add .exclude({ path: 'webhooks/ping', method: RequestMethod.GET }) for
+    // unsigned health-check endpoints from specific providers.
+    consumer
+      .apply(WebhookSignatureMiddleware)
+      .forRoutes('webhooks');
   }
 }
