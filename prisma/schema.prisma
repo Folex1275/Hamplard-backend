@@ -526,6 +526,7 @@ model Certificate {
   courseTitle     String   // stored for quick display
   instructorAddress String
   txHash          String?  // on-chain certificate issuance tx
+  pdfUrl          String?  // generated PDF file reference/URL
   isRevoked       Boolean  @default(false)
   issuedAt        DateTime @default(now())
 
