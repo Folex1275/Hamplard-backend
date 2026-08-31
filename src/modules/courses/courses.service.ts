@@ -5,6 +5,7 @@ import {
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { FeeCalculatorService } from '../billing/fee-calculator.service';
+import { CacheService } from '../../common/cache/cache.service';
 import { CourseStatus, NotificationType } from '@prisma/client';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
@@ -18,7 +19,16 @@ export class CoursesService {
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
     private readonly feeCalculator: FeeCalculatorService,
+    private readonly cache: CacheService,
   ) {}
+
+  /** Issue #92 — invalidate cached course listings/categories on content updates. */
+  private async invalidateCourseCaches(): Promise<void> {
+    await Promise.all([
+      this.cache.invalidateNamespace('courses:list'),
+      this.cache.invalidateNamespace('courses:categories'),
+    ]);
+  }
 
   // ----------------------------------------------------------
   // CREATE
@@ -51,6 +61,7 @@ export class CoursesService {
     });
 
     this.logger.log(`Course created (draft): ${course.id} by ${instructorAddress}`);
+    await this.invalidateCourseCaches();
     return course;
   }
 
@@ -109,6 +120,7 @@ export class CoursesService {
     }
 
     this.logger.log(`Course approved: ${courseId}`);
+    await this.invalidateCourseCaches();
     return updated;
   }
 
@@ -136,6 +148,7 @@ export class CoursesService {
       );
     }
 
+    await this.invalidateCourseCaches();
     return updated;
   }
 
@@ -216,7 +229,9 @@ export class CoursesService {
     if (course.status === CourseStatus.ARCHIVED) {
       throw new ForbiddenException('Cannot update an archived course');
     }
-    return this.prisma.course.update({ where: { id: courseId }, data: dto });
+    const updated = await this.prisma.course.update({ where: { id: courseId }, data: dto });
+    await this.invalidateCourseCaches();
+    return updated;
   }
 
   // ----------------------------------------------------------
