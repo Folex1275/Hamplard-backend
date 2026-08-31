@@ -302,8 +302,29 @@ model User {
   answersGiven        Answer[]              @relation("AnswersGiven")
   courseDrafts        CourseDraft[]         @relation("InstructorCourseDrafts")
   learningPathsCreated LearningPath[]       @relation("LearningPathCreator")
+  sessions            Session[]             @relation("UserSessions")
 
   @@map("users")
+}
+
+// Tracks an issued JWT so it can be listed and revoked per device (issue #69).
+model Session {
+  id           String    @id @default(uuid())
+  userId       String
+  jti          String    @unique // matches the `jti` claim embedded in the JWT
+  deviceLabel  String?   // parsed friendly label, e.g. "Chrome on Windows"
+  userAgent    String?
+  ipAddress    String?
+  createdAt    DateTime  @default(now())
+  lastActiveAt DateTime  @default(now())
+  expiresAt    DateTime
+  revokedAt    DateTime?
+
+  // Relations
+  user User @relation("UserSessions", fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("sessions")
 }
 
 model Course {
